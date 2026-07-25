@@ -175,7 +175,7 @@ Seluruh sistem menggunakan **WIB (Asia/Jakarta)**. Konfigurasi ini diatur di:
 - `config/app.php` → `timezone` & `locale`
 - Semua kolom tanggal di tabel Filament menggunakan `.timezone('Asia/Jakarta')`
 
-----
+---
 
 ## 💡 Penggunaan
 
