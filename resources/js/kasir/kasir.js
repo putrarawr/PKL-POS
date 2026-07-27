@@ -83,15 +83,6 @@ function tambahKeCart(barangId) {
 
     if (jumlahSekarang + 1 > stok) {
         const rekomendasi = gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang());
-        if (stok === 0 && rekomendasi.length > 0 && state.cart.length === 0 && gudangSetValue) {
-            const gudangRekom = state.gudang.find((g) => g.nama_gudang === rekomendasi[0]);
-            if (gudangRekom) {
-                gudangSetValue(gudangRekom.id);
-                toast(`Beralih ke ${gudangRekom.nama_gudang}`, false);
-                tambahKeCart(barangId);
-                return;
-            }
-        }
         if (stok === 0) {
             if (rekomendasi.length > 0) {
                 toast(`Stok ${barang.nama_barang} habis di ${namaGudangSekarang()}. Tersedia di: ${rekomendasi.join(', ')}`, true);
@@ -504,12 +495,14 @@ function render() {
 let toastTimer;
 function toast(msg, error = false) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = `anim-toast fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg z-50
-        ${error ? 'bg-red-600' : 'bg-zinc-900'}`;
+    el.innerHTML = error
+        ? `<svg class="w-5 h-5 shrink-0 inline-block -mt-0.5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${msg}`
+        : msg;
+    el.className = `anim-toast fixed top-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl z-50 max-w-lg w-full text-center
+        ${error ? 'bg-red-600/95 backdrop-blur-sm ring-1 ring-red-400/30' : 'bg-zinc-900/95 backdrop-blur-sm'}`;
     el.classList.remove('hidden');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
 }
 
 // ------------------------- DROPDOWN CUSTOM -------------------------
