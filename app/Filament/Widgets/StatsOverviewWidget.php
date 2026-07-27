@@ -24,9 +24,15 @@ class StatsOverviewWidget extends BaseWidget
         ];
     }
 
-    private function formatValue(string $text): HtmlString
+    private function formatRp(float|int $amount): HtmlString
     {
-        return new HtmlString('<span class="text-base sm:text-lg lg:text-xl font-extrabold tracking-tight whitespace-nowrap">' . e($text) . '</span>');
+        $formatted = 'Rp&nbsp;' . number_format($amount, 0, ',', '.');
+        return new HtmlString('<span style="white-space: nowrap !important; font-size: 1.15rem !important; line-height: 1.6rem !important; display: inline-block !important; font-weight: 800 !important;">' . $formatted . '</span>');
+    }
+
+    private function formatItemCount(int $count): HtmlString
+    {
+        return new HtmlString('<span style="white-space: nowrap !important; font-size: 1.15rem !important; line-height: 1.6rem !important; display: inline-block !important; font-weight: 800 !important;">' . $count . '&nbsp;item</span>');
     }
 
     protected function getStats(): array
@@ -52,22 +58,22 @@ class StatsOverviewWidget extends BaseWidget
             ->count();
 
         return [
-            Stat::make('Penjualan Hari Ini', $this->formatValue('Rp ' . number_format($totalHariIni, 0, ',', '.')))
+            Stat::make('Penjualan Hari Ini', $this->formatRp($totalHariIni))
                 ->description("{$countHariIni} transaksi sukses")
                 ->descriptionIcon(Heroicon::OutlinedShoppingCart)
                 ->color('success'),
 
-            Stat::make('Penjualan Bulan Ini', $this->formatValue('Rp ' . number_format($totalBulanIni, 0, ',', '.')))
+            Stat::make('Penjualan Bulan Ini', $this->formatRp($totalBulanIni))
                 ->description(Carbon::now()->translatedFormat('F Y'))
                 ->descriptionIcon(Heroicon::OutlinedBanknotes)
                 ->color('primary'),
 
-            Stat::make('Pembelian Bulan Ini', $this->formatValue('Rp ' . number_format($totalBeliBulanIni, 0, ',', '.')))
+            Stat::make('Pembelian Bulan Ini', $this->formatRp($totalBeliBulanIni))
                 ->description('Total modal barang masuk')
                 ->descriptionIcon(Heroicon::OutlinedArrowDownTray)
                 ->color('warning'),
 
-            Stat::make('Stok Menipis (<= 5)', $this->formatValue($lowStockCount . ' item'))
+            Stat::make('Stok Menipis (<= 5)', $this->formatItemCount($lowStockCount))
                 ->description($lowStockCount > 0 ? '🔍 Klik untuk lihat rincian' : 'Semua stok aman')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color($lowStockCount > 0 ? 'danger' : 'gray')
