@@ -14,6 +14,16 @@ class StatsOverviewWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
 
+    protected function getColumns(): int|array|null
+    {
+        return [
+            'default' => 1,
+            'sm' => 2,
+            'lg' => 2,
+            '2xl' => 4,
+        ];
+    }
+
     protected function getStats(): array
     {
         $today = Carbon::today();
