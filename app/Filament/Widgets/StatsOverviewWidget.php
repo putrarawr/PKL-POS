@@ -20,19 +20,21 @@ class StatsOverviewWidget extends BaseWidget
         return [
             'default' => 1,
             'sm' => 2,
-            'lg' => 4,
+            'md' => 2,
+            'xl' => 4,
         ];
     }
 
     private function formatRp(float|int $amount): HtmlString
     {
+        $plain = 'Rp ' . number_format($amount, 0, ',', '.');
         $formatted = 'Rp&nbsp;' . number_format($amount, 0, ',', '.');
-        return new HtmlString('<span style="white-space: nowrap !important; font-size: 1.15rem !important; line-height: 1.6rem !important; display: inline-block !important; font-weight: 800 !important;">' . $formatted . '</span>');
+        return new HtmlString('<span style="white-space: nowrap !important; font-size: clamp(0.95rem, 1.35vw, 1.25rem) !important; line-height: 1.4 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; font-weight: 800 !important;" title="' . e($plain) . '">' . $formatted . '</span>');
     }
 
     private function formatItemCount(int $count): HtmlString
     {
-        return new HtmlString('<span style="white-space: nowrap !important; font-size: 1.15rem !important; line-height: 1.6rem !important; display: inline-block !important; font-weight: 800 !important;">' . $count . '&nbsp;item</span>');
+        return new HtmlString('<span style="white-space: nowrap !important; font-size: clamp(0.95rem, 1.35vw, 1.25rem) !important; line-height: 1.4 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; font-weight: 800 !important;">' . $count . '&nbsp;item</span>');
     }
 
     protected function getStats(): array
