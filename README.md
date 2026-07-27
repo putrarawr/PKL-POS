@@ -14,7 +14,7 @@ Sistem Point of Sale (POS) berbasis web untuk manajemen toko retail/distributor,
 - [Penggunaan](#-penggunaan)
 - [Skema Database](#-skema-database)
 
---
+---
 
 ## ✨ Fitur Utama
 
