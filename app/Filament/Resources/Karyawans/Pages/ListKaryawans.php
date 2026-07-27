@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\Customers\Pages;
+namespace App\Filament\Resources\Karyawans\Pages;
 
-use App\Filament\Resources\Customers\CustomerResource;
+use App\Filament\Resources\Karyawans\KaryawanResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListCustomers extends ListRecords
+class ListKaryawans extends ListRecords
 {
-    protected static string $resource = CustomerResource::class;
+    protected static string $resource = KaryawanResource::class;
 
     protected function getHeaderActions(): array
     {

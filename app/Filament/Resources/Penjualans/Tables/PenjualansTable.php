@@ -27,9 +27,9 @@ class PenjualansTable
                     ->date('d M Y')
                     ->sortable(),
 
-                TextColumn::make('customer.nama_customer')
-                    ->label('Customer')
-                    ->default('Pelanggan Umum')
+                TextColumn::make('karyawan.nama_karyawan')
+                    ->label('Kasir')
+                    ->default('-')
                     ->searchable()
                     ->sortable(),
 
@@ -80,9 +80,9 @@ class PenjualansTable
                         'transfer' => 'Transfer',
                     ]),
 
-                SelectFilter::make('customer_id')
-                    ->label('Customer')
-                    ->relationship('customer', 'nama_customer'),
+                SelectFilter::make('karyawan_id')
+                    ->label('Kasir / Karyawan')
+                    ->relationship('karyawan', 'nama_karyawan'),
             ])
             ->recordActions([
                 Action::make('view_detail')
@@ -90,7 +90,7 @@ class PenjualansTable
                     ->modalHeading(fn (Penjualan $record) => "Detail Penjualan #{$record->nomer_nota}")
                     ->modalContent(fn (Penjualan $record): View => view(
                         'filament.resources.penjualan.detail-modal',
-                        ['record' => $record->load('details.barang', 'customer', 'gudang')]
+                        ['record' => $record->load('details.barang', 'karyawan', 'gudang')]
                     ))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup'),

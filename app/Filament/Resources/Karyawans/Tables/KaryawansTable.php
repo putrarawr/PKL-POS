@@ -1,28 +1,28 @@
 <?php
 
-namespace App\Filament\Resources\Customers\Tables;
+namespace App\Filament\Resources\Karyawans\Tables;
 
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
-class CustomersTable
+class KaryawansTable
 {
     public static function configure(Table $table): Table
     {
         return $table
             ->columns([
-                TextColumn::make('nama_customer')
-                    ->label('Nama Customer')
+                TextColumn::make('nama_karyawan')
+                    ->label('Nama Karyawan')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('email')
+                    ->label('Email (Kasir)')
+                    ->searchable(),
                 TextColumn::make('no_telp')
                     ->label('No. Telepon'),
-                TextColumn::make('email')
-                    ->label('Email')
-                    ->searchable(),
                 TextColumn::make('alamat')
                     ->label('Alamat')
                     ->limit(30),
@@ -31,9 +31,7 @@ class CustomersTable
                     ->dateTime('d M Y')
                     ->sortable(),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->recordActions([
                 EditAction::make(),
             ])

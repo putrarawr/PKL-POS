@@ -13,7 +13,7 @@ class Penjualan extends Model
 
     protected $fillable = [
         'nomer_nota',
-        'customer_id',
+        'karyawan_id',
         'gudang_id',
         'tanggal',
         'total',
@@ -24,9 +24,9 @@ class Penjualan extends Model
         'kembalian',
     ];
 
-    public function customer()
+    public function karyawan()
     {
-        return $this->belongsTo(Customer::class, 'customer_id', 'id_customer');
+        return $this->belongsTo(Karyawan::class, 'karyawan_id', 'id_karyawan');
     }
 
     public function gudang()

@@ -86,7 +86,7 @@
                 <div class="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-sm select-none">K</div>
                 <div class="leading-tight">
                     <h1 class="text-sm font-bold tracking-tight">Kasir</h1>
-                    <p class="text-[11px] font-medium text-zinc-400">Toko PKL</p>
+                    <p class="text-[11px] font-medium text-zinc-400">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif Toko PKL</p>
                 </div>
             </div>
 

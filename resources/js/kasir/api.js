@@ -80,10 +80,6 @@ export async function getGudang() {
     return structuredClone(sumber().gudang);
 }
 
-export async function getCustomers() {
-    return structuredClone(sumber().customers);
-}
-
 /**
  * Simpan transaksi kasir → POST /kasir/simpan (route web biasa, bukan API).
  *

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Barang;
-use App\Models\Customer;
 use App\Models\DetailJual;
 use App\Models\Gudang;
 use App\Models\JenisBarang;
 use App\Models\KartuStok;
+use App\Models\Karyawan;
 use App\Models\Penjualan;
 use App\Services\StokService;
 use Illuminate\Http\Request;
@@ -21,7 +21,7 @@ class KasirController extends Controller
      */
     public function showLogin()
     {
-        if (Auth::check()) {
+        if (Auth::guard('karyawan')->check()) {
             return redirect()->route('kasir');
         }
 
@@ -38,10 +38,7 @@ class KasirController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        // coba login pakai email atau name (biar "Username or Email" beneran jalan)
-        $loginField = filter_var($credentials['email'], FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
-
-        if (Auth::attempt([$loginField => $credentials['email'], 'password' => $credentials['password']], $request->boolean('remember'))) {
+        if (Auth::guard('karyawan')->attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $request->boolean('remember'))) {
             $request->session()->regenerate();
 
             return redirect()->intended(route('kasir'));
@@ -57,7 +54,7 @@ class KasirController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('karyawan')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -70,8 +67,15 @@ class KasirController extends Controller
      */
     public function index()
     {
+        $karyawan = Auth::guard('karyawan')->user();
+
         return view('kasir', [
             'kasirData' => [
+                'karyawan' => $karyawan ? [
+                    'id' => $karyawan->id_karyawan,
+                    'nama' => $karyawan->nama_karyawan,
+                    'email' => $karyawan->email,
+                ] : null,
                 'barang' => Barang::with('gudangs')->get()->map(fn ($b) => [
                     'id' => $b->id,
                     'jenis_barang_id' => $b->jenis_barang_id,
@@ -83,7 +87,6 @@ class KasirController extends Controller
                 ]),
                 'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
                 'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
-                'customers' => Customer::all(['id_customer', 'nama_customer', 'no_telp']),
             ],
         ]);
     }
@@ -96,7 +99,6 @@ class KasirController extends Controller
     public function simpan(Request $request)
     {
         $data = $request->validate([
-            'customer_id' => ['nullable', 'integer', 'exists:customers,id_customer'],
             'gudang_id' => ['required', 'integer', 'exists:gudang,id'],
             'tanggal' => ['required', 'date'],
             'diskon' => ['required', 'integer', 'min:0'],
@@ -150,7 +152,7 @@ class KasirController extends Controller
 
             $penjualan = Penjualan::create([
                 'nomer_nota' => $nomerNota,
-                'customer_id' => $data['customer_id'],
+                'karyawan_id' => Auth::guard('karyawan')->id(),
                 'gudang_id' => $gudangId,
                 'tanggal' => $data['tanggal'],
                 'total' => $total,

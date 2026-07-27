@@ -9,7 +9,6 @@ import {
     getBarang,
     getJenisBarang,
     getGudang,
-    getCustomers,
     simpanPenjualan,
     USE_MOCK,
 } from './api.js';
@@ -20,11 +19,9 @@ const state = {
     barang: [],
     jenisBarang: [],
     gudang: [],
-    customers: [],
     // keranjang: [{ barang_id, nama_barang, satuan, harga, jumlah, diskon }]
     cart: [],
     gudangId: null,
-    customerId: null,
     filterJenis: null,
     search: '',
     diskonTransaksi: 0,
@@ -197,7 +194,6 @@ async function prosesBayar() {
 
     const payload = {
         // nomer nota dibikin server (KasirController@simpan) biar urut & gak bentrok
-        customer_id: state.customerId,
         gudang_id: state.gudangId,
         tanggal: new Date().toISOString().slice(0, 10),
         total: totalKotor(),
@@ -261,11 +257,16 @@ function tampilkanStruk(payload) {
             ? `transfer ${state.bankTransfer}`
             : payload.jenis_pembayaran;
 
+    const namaKasir = (typeof window !== 'undefined' && window.KASIR_DATA?.karyawan?.nama)
+        ? window.KASIR_DATA.karyawan.nama
+        : 'Kasir';
+
     document.getElementById('struk-body').innerHTML = `
         <div class="text-center mb-5">
             <p class="font-black text-lg tracking-tight">TOKO PKL</p>
             <p class="text-xs text-zinc-400 mt-1">${gudang?.nama_gudang ?? ''}</p>
             <p class="text-xs text-zinc-400">${payload.nomer_nota} &middot; ${payload.tanggal}</p>
+            <p class="text-xs font-semibold text-zinc-600 mt-0.5">Kasir: ${namaKasir}</p>
         </div>
         <table class="w-full text-sm border-y border-dashed border-zinc-300 py-2 my-2 tabular-nums">${rows}</table>
         <div class="text-sm space-y-2 mt-4 tabular-nums">
@@ -529,16 +530,14 @@ document.addEventListener('click', () => {
 // ------------------------- INIT -------------------------
 
 async function init() {
-    const [barang, jenis, gudang, customers] = await Promise.all([
+    const [barang, jenis, gudang] = await Promise.all([
         getBarang(),
         getJenisBarang(),
         getGudang(),
-        getCustomers(),
     ]);
     state.barang = barang;
     state.jenisBarang = jenis;
     state.gudang = gudang;
-    state.customers = customers;
     state.gudangId = gudang[0]?.id ?? null;
 
     // dropdown gudang (custom)
@@ -552,9 +551,6 @@ async function init() {
             render();
         }
     );
-
-    // customer gak dipilih dari UI lagi; transaksi tercatat atas customer pertama
-    state.customerId = customers[0]?.id_customer ?? null;
 
     // filter kategori
     const wrapFilter = document.getElementById('filter-jenis');

@@ -42,6 +42,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'karyawan' => [
+            'driver' => 'session',
+            'provider' => 'karyawan',
+        ],
     ],
 
     /*
@@ -66,11 +70,10 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'karyawan' => [
+            'driver' => 'eloquent',
+            'model' => \App\Models\Karyawan::class,
+        ],
     ],
 
     /*

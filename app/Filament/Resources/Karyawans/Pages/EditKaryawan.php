@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Resources\Customers\Pages;
+namespace App\Filament\Resources\Karyawans\Pages;
 
-use App\Filament\Resources\Customers\CustomerResource;
+use App\Filament\Resources\Karyawans\KaryawanResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
-class EditCustomer extends EditRecord
+class EditKaryawan extends EditRecord
 {
-    protected static string $resource = CustomerResource::class;
+    protected static string $resource = KaryawanResource::class;
 
     protected function getHeaderActions(): array
     {
