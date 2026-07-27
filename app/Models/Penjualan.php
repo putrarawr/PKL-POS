@@ -14,6 +14,7 @@ class Penjualan extends Model
     protected $fillable = [
         'nomer_nota',
         'karyawan_id',
+        'user_id',
         'gudang_id',
         'tanggal',
         'total',
@@ -27,6 +28,24 @@ class Penjualan extends Model
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class, 'karyawan_id', 'id_karyawan');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function getNamaKasirAttribute(): string
+    {
+        if ($this->karyawan) {
+            return $this->karyawan->nama_karyawan;
+        }
+
+        if ($this->user) {
+            return $this->user->name . ' [Admin]';
+        }
+
+        return '-';
     }
 
     public function gudang()

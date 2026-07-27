@@ -12,7 +12,7 @@
         </div>
         <div>
             <p style="font-size:10px;color:#71717a;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Kasir</p>
-            <p style="font-size:13px;font-weight:600;color:#d4d4d8">{{ $record->karyawan->nama_karyawan ?? '-' }}</p>
+            <p style="font-size:13px;font-weight:600;color:#d4d4d8">{{ $record->nama_kasir }}</p>
         </div>
         <div>
             <p style="font-size:10px;color:#71717a;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Gudang</p>

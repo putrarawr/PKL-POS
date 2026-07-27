@@ -27,11 +27,10 @@ class PenjualansTable
                     ->date('d M Y')
                     ->sortable(),
 
-                TextColumn::make('karyawan.nama_karyawan')
+                TextColumn::make('nama_kasir')
                     ->label('Kasir')
                     ->default('-')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(),
 
                 TextColumn::make('gudang.nama_gudang')
                     ->label('Gudang')
@@ -90,7 +89,7 @@ class PenjualansTable
                     ->modalHeading(fn (Penjualan $record) => "Detail Penjualan #{$record->nomer_nota}")
                     ->modalContent(fn (Penjualan $record): View => view(
                         'filament.resources.penjualan.detail-modal',
-                        ['record' => $record->load('details.barang', 'karyawan', 'gudang')]
+                        ['record' => $record->load('details.barang', 'karyawan', 'user', 'gudang')]
                     ))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup'),

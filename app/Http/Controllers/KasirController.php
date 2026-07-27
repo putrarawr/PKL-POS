@@ -19,9 +19,12 @@ class KasirController extends Controller
     /**
      * Tampilkan halaman login kasir.
      */
+    /**
+     * Tampilkan halaman login kasir.
+     */
     public function showLogin()
     {
-        if (Auth::guard('karyawan')->check()) {
+        if (Auth::guard('karyawan')->check() || Auth::guard('web')->check()) {
             return redirect()->route('kasir');
         }
 
@@ -38,7 +41,16 @@ class KasirController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // 1. Coba login sebagai Karyawan
         if (Auth::guard('karyawan')->attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $request->boolean('remember'))) {
+            $request->session()->regenerate();
+
+            return redirect()->intended(route('kasir'));
+        }
+
+        // 2. Jika gagal, coba login sebagai Admin (User)
+        $loginField = filter_var($credentials['email'], FILTER_VALIDATE_EMAIL) ? 'email' : 'name';
+        if (Auth::guard('web')->attempt([$loginField => $credentials['email'], 'password' => $credentials['password']], $request->boolean('remember'))) {
             $request->session()->regenerate();
 
             return redirect()->intended(route('kasir'));
@@ -55,6 +67,7 @@ class KasirController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('karyawan')->logout();
+        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -67,15 +80,26 @@ class KasirController extends Controller
      */
     public function index()
     {
-        $karyawan = Auth::guard('karyawan')->user();
+        $karyawanInfo = null;
+        if ($karyawan = Auth::guard('karyawan')->user()) {
+            $karyawanInfo = [
+                'id' => $karyawan->id_karyawan,
+                'nama' => $karyawan->nama_karyawan,
+                'email' => $karyawan->email,
+                'type' => 'karyawan',
+            ];
+        } elseif ($user = Auth::guard('web')->user()) {
+            $karyawanInfo = [
+                'id' => $user->id,
+                'nama' => $user->name,
+                'email' => $user->email,
+                'type' => 'user',
+            ];
+        }
 
         return view('kasir', [
             'kasirData' => [
-                'karyawan' => $karyawan ? [
-                    'id' => $karyawan->id_karyawan,
-                    'nama' => $karyawan->nama_karyawan,
-                    'email' => $karyawan->email,
-                ] : null,
+                'karyawan' => $karyawanInfo,
                 'barang' => Barang::with('gudangs')->get()->map(fn ($b) => [
                     'id' => $b->id,
                     'jenis_barang_id' => $b->jenis_barang_id,
@@ -150,9 +174,13 @@ class KasirController extends Controller
                 ->lockForUpdate()->get('id')->count() + 1;
             $nomerNota = 'PJ-' . str_replace('-', '', $data['tanggal']) . '-' . str_pad($urutan, 4, '0', STR_PAD_LEFT);
 
+            $karyawanId = Auth::guard('karyawan')->check() ? Auth::guard('karyawan')->id() : null;
+            $userId = Auth::guard('web')->check() ? Auth::guard('web')->id() : null;
+
             $penjualan = Penjualan::create([
                 'nomer_nota' => $nomerNota,
-                'karyawan_id' => Auth::guard('karyawan')->id(),
+                'karyawan_id' => $karyawanId,
+                'user_id' => $userId,
                 'gudang_id' => $gudangId,
                 'tanggal' => $data['tanggal'],
                 'total' => $total,
