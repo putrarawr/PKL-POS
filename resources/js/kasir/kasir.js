@@ -413,7 +413,7 @@ function renderCart() {
     if (document.activeElement !== inputDiskon) inputDiskon.value = state.diskonTransaksi || '';
     
     const inputBayar = document.getElementById('input-bayar');
-    if (document.activeElement !== inputBayar) inputBayar.value = state.bayar || '';
+    if (document.activeElement !== inputBayar) inputBayar.value = state.bayar ? state.bayar.toLocaleString('id-ID') : '';
 
     // uang pas & tombol bayar; panel per metode pembayaran
     document.getElementById('btn-uang-pas').textContent = `Uang pas (${rupiah(totalNeto())})`;
@@ -623,7 +623,15 @@ async function init() {
     });
 
     document.getElementById('input-bayar').addEventListener('input', (e) => {
-        state.bayar = Number(e.target.value) || 0;
+        let raw = e.target.value.replace(/\D/g, ''); // hanya angka
+        if (raw !== '') {
+            let val = Number(raw);
+            e.target.value = val.toLocaleString('id-ID');
+            state.bayar = val;
+        } else {
+            e.target.value = '';
+            state.bayar = 0;
+        }
         renderCart();
     });
     document.getElementById('btn-uang-pas').addEventListener('click', () => {

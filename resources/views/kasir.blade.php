@@ -207,7 +207,7 @@
                         <div id="row-tunai" class="space-y-2.5 text-sm">
                             <div class="flex justify-between items-center">
                                 <span class="text-zinc-500">Uang diterima</span>
-                                <input id="input-bayar" type="number" min="0" placeholder="Rp 0"
+                                <input id="input-bayar" type="text" inputmode="numeric" placeholder="Rp 0"
                                     class="w-32 text-right text-sm font-semibold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 tabular-nums placeholder:font-normal placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors">
                             </div>
                             <button id="btn-uang-pas"
