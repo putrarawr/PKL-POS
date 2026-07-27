@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\PerpindahanBarangs;
 
 use App\Filament\Resources\PerpindahanBarangs\Pages\CreatePerpindahanBarang;
-use App\Filament\Resources\PerpindahanBarangs\Pages\EditPerpindahanBarang;
+
 use App\Filament\Resources\PerpindahanBarangs\Pages\ListPerpindahanBarangs;
 use App\Filament\Resources\PerpindahanBarangs\Schemas\PerpindahanBarangForm;
 use App\Filament\Resources\PerpindahanBarangs\Tables\PerpindahanBarangsTable;
@@ -38,7 +38,6 @@ class PerpindahanBarangResource extends Resource
         return [
             'index' => ListPerpindahanBarangs::route('/'),
             'create' => CreatePerpindahanBarang::route('/create'),
-            'edit' => EditPerpindahanBarang::route('/{record}/edit'),
         ];
     }
 }

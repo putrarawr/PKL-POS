@@ -9,8 +9,7 @@ use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteAction;
+use Filament\Actions\ViewAction;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +19,8 @@ class PerpindahanBarangsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->recordUrl(null)
+            ->recordAction('view')
             ->columns([
                 TextColumn::make('nomer_entry')
                     ->label('Nomer Entry')
@@ -71,23 +72,8 @@ class PerpindahanBarangsTable
                     }),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make()
-                    ->using(function ($record, DeleteAction $action) {
-                        $stok = app(StokService::class);
-                        try {
-                            return DB::transaction(function () use ($stok, $record) {
-                                $stok->balikkanPerpindahan($stok->snapshotPerpindahan($record));
-                                return $record->delete();
-                            });
-                        } catch (StokTidakCukupException $e) {
-                            Notification::make()->danger()
-                                ->title('Tidak bisa menghapus')
-                                ->body($e->getMessage())
-                                ->send();
-                            $action->cancel();
-                        }
-                    }),
+                ViewAction::make()
+                    ->extraAttributes(['class' => 'hidden', 'style' => 'display: none']),
             ])
             ->bulkActions([
                 // No bulk delete
