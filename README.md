@@ -1,241 +1,215 @@
-# 🏪 Sistem POS (Point of Sale) — Project PKL
+# Point of Sale (POS) System
 
-Sistem Point of Sale (POS) berbasis web untuk manajemen toko retail/distributor, dibangun menggunakan **Laravel 13**, **Filament v5**, dan **PostgreSQL**.
-
----
-
-## 📋 Daftar Isi
-
-- [Fitur Utama](#-fitur-utama)
-- [Tech Stack](#-tech-stack)
-- [Struktur Modul](#-struktur-modul)
-- [Instalasi & Setup](#-instalasi--setup)
-- [Konfigurasi](#%EF%B8%8F-konfigurasi)
-- [Penggunaan](#-penggunaan)
-- [Skema Database](#-skema-database)
+A modern, web-based Point of Sale (POS) system designed for retail and distribution management. Built using **Laravel 13**, **Filament**, and **PostgreSQL**.
 
 ---
 
-## ✨ Fitur Utama
+## Table of Contents
 
-### 🖥️ Halaman Kasir (`/kasir`)
-- Antarmuka kasir modern untuk memproses transaksi penjualan
-- Pencarian barang real-time
-- Input jumlah & diskon per item
-- Pilihan metode pembayaran (Tunai, QRIS, Transfer)
-- Perhitungan otomatis subtotal, diskon, total neto, dan kembalian
-- Cetak/preview struk transaksi
-
-### 📊 Dashboard Admin (`/admin`)
-- **4 Stat Cards**: Penjualan Hari Ini, Penjualan Bulan Ini, Pembelian Bulan Ini, Stok Menipis
-- **Grafik Omset Penjualan** (7 hari terakhir) — Line chart hijau
-- **Grafik Modal Pembelian** (7 hari terakhir) — Line chart oranye
-- **Pop-up SweetAlert Stok Menipis** — Muncul otomatis sekali setelah login jika ada barang stok ≤ 5 pcs
-- Klik card "Stok Menipis" untuk melihat rincian barang kapan saja
-
-### 📦 Manajemen Data (CRUD)
-| Modul | Deskripsi |
-|---|---|
-| **Barang** | Kelola data barang, harga jual, satuan, relasi jenis & gudang |
-| **Jenis Barang** | Kategori/klasifikasi barang |
-| **Gudang** | Data gudang penyimpanan |
-| **Supplier** | Data pemasok barang |
-| **Customer** | Data pelanggan (opsional, untuk transaksi member) |
-
-### 📄 Laporan & Riwayat (Read-Only dengan Detail Modal)
-| Modul | Deskripsi |
-|---|---|
-| **Barang Keluar (Penjualan)** | Riwayat transaksi penjualan dari kasir. Klik baris untuk lihat detail nota |
-| **Barang Masuk (Pembelian)** | Riwayat & input transaksi pembelian dari supplier. Klik baris untuk lihat detail |
-| **Perpindahan Barang** | Transfer stok antar gudang |
-| **Kartu Stok** | Buku mutasi stok barang (masuk/keluar/pindah). Klik baris untuk lihat detail |
-| **Riwayat Aktivitas** | Audit log perubahan data (via Spatie Activity Log) |
-
-### 🔔 Fitur Tambahan
-- **Zona waktu WIB** (Asia/Jakarta) di seluruh sistem
-- **SPA Mode** — Navigasi halaman admin tanpa full reload
-- **Dark Theme** pada seluruh modal detail
-- **Badge warna** untuk jenis pembayaran (Tunai/QRIS/Transfer/Tempo)
-- **Validasi stok otomatis** — Hapus pembelian/penjualan otomatis rollback stok
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [System Architecture & Directory Structure](#system-architecture--directory-structure)
+- [Installation & Setup](#installation--setup)
+- [Configuration](#configuration)
+- [Usage & Workflows](#usage--workflows)
+- [Database Schema](#database-schema)
+- [License](#license)
 
 ---
 
-## 🛠️ Tech Stack
+## Key Features
 
-| Komponen | Teknologi |
+### Cashier Interface (`/kasir`)
+- **Fully Responsive Layout**: Works seamlessly on desktop, tablet, and mobile screens with a dedicated slide-over drawer for mobile shopping cart navigation.
+- **Real-Time Product Search & Filtering**: Instant search by item name and category filtering.
+- **Strict Input Validation**:
+  - Discount percentages are strictly clamped between 0% and 100%.
+  - Non-numeric input and negative values are automatically stripped.
+- **Thousands Separator Formatting**: Cash received input (`input-bayar`) automatically formats digits with Indonesian thousands separators (e.g., `1.000.000`).
+- **Payment Method Support**: Handles Cash (Tunai), QRIS, and Bank Transfer.
+- **Automated Calculations**: Instant calculation of subtotal, transaction discount, net total, and change due.
+- **Receipt Generation**: Virtual receipt preview with thermal print capabilities.
+
+### Admin Dashboard (`/admin`)
+- **Overview Statistics Cards**:
+  - Today's Sales
+  - This Month's Sales
+  - This Month's Purchases
+  - Low Stock Alert Count
+- **Analytical Charts**:
+  - Sales Revenue Chart (7-day line chart)
+  - Purchase Expenditure Chart (7-day line chart)
+- **Low Stock Notification**: Automatic alert trigger for items with stock <= 5 units.
+
+### Data Management (CRUD)
+- **Products (Barang)**: Product master data, selling price, unit, category, and warehouse stock association.
+- **Categories (Jenis Barang)**: Product classification and groupings.
+- **Warehouses (Gudang)**: Storage locations for inventory tracking.
+- **Suppliers**: Vendor and supplier records.
+- **Customers**: Customer directory for member/recurring transactions.
+
+### Reports & Inventory Tracking
+- **Sales History (Barang Keluar)**: Transaction records linked to cashier users (`user_id`). Features a row-click modal view.
+- **Purchase History (Barang Masuk)**: Vendor purchase records with stock increment logic and modal inspection.
+- **Stock Transfers (Perpindahan Barang)**: Inter-warehouse inventory transfers with modal inspection.
+- **Stock Ledger (Kartu Stok)**: Full audit trail of all stock movements (incoming, outgoing, transfer).
+- **Activity Log**: User activity tracking via Spatie Laravel Activitylog.
+
+### Architecture Highlights
+- Configured for **WIB (Asia/Jakarta)** timezone across all components.
+- Single Page Application (SPA) navigation mode enabled for Filament Admin Panel.
+- Automated inventory validation and stock rollback handling.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| **Backend** | PHP 8.3+, Laravel 13 |
-| **Admin Panel** | Filament v5 |
-| **Frontend Kasir** | Vanilla JavaScript + Vite |
+| **Backend Framework** | PHP 8.3+, Laravel 13 |
+| **Admin Panel** | Filament |
+| **Cashier Interface** | Vanilla JavaScript (ES6+), Tailwind CSS, Vite |
 | **Database** | PostgreSQL |
-| **Activity Log** | Spatie Laravel Activity Log v5 |
-| **Pop-up Alert** | SweetAlert2 (CDN) |
-| **Styling** | Filament UI (Admin), Custom CSS (Kasir) |
+| **Audit Logging** | Spatie Laravel Activitylog |
+| **Alert Systems** | SweetAlert2 |
 
 ---
 
-## 📁 Struktur Modul
+## System Architecture & Directory Structure
 
 ```
 app/
 ├── Filament/
 │   ├── Resources/
-│   │   ├── Activities/          # Riwayat Aktivitas
-│   │   ├── Barangs/             # Master Barang
-│   │   ├── Customers/           # Master Customer
-│   │   ├── Gudangs/             # Master Gudang
-│   │   ├── JenisBarangs/        # Master Jenis Barang
-│   │   ├── KartuStoks/          # Kartu Stok (read-only)
-│   │   ├── Pembelians/          # Barang Masuk (Pembelian)
-│   │   ├── Penjualans/          # Barang Keluar (Penjualan)
-│   │   ├── PerpindahanBarangs/  # Perpindahan Antar Gudang
-│   │   └── Suppliers/           # Master Supplier
+│   │   ├── Activities/          # Activity log history
+│   │   ├── Barangs/             # Product master management
+│   │   ├── Customers/           # Customer management
+│   │   ├── Gudangs/             # Warehouse management
+│   │   ├── JenisBarangs/        # Product category management
+│   │   ├── KartuStoks/          # Read-only stock ledger
+│   │   ├── Pembelians/          # Purchase orders (incoming goods)
+│   │   ├── Penjualans/          # Sales records (outgoing goods)
+│   │   ├── PerpindahanBarangs/  # Inter-warehouse transfers
+│   │   └── Suppliers/           # Supplier management
 │   └── Widgets/
-│       ├── StatsOverviewWidget.php      # 4 Stat Cards Dashboard
-│       ├── PenjualanChartWidget.php     # Grafik Penjualan
-│       └── PembelianChartWidget.php     # Grafik Pembelian
+│       ├── StatsOverviewWidget.php      # Dashboard stat cards
+│       ├── PenjualanChartWidget.php     # Sales trend chart
+│       └── PembelianChartWidget.php     # Purchase cost chart
 ├── Http/Controllers/
-│   └── KasirController.php     # Controller halaman kasir
-├── Models/                      # 13 Eloquent Models
+│   └── KasirController.php     # Cashier page endpoints & processing
+├── Models/                      # Eloquent ORM Models
 ├── Services/
-│   └── StokService.php         # Logic stok: catat kartu, validasi, rollback
+│   └── StokService.php         # Inventory logic, ledger recording, rollback
 └── Providers/
     └── Filament/
-        └── AdminPanelProvider.php  # Konfigurasi panel admin
+        └── AdminPanelProvider.php  # Admin panel configuration
 ```
 
 ---
 
-## 🚀 Instalasi & Setup
+## Installation & Setup
 
-### Prasyarat
+### Prerequisites
 - PHP 8.3+
 - Composer
-- Node.js & NPM
+- Node.js (v18+) & NPM
 - PostgreSQL
 
-### Langkah Instalasi
+### Installation Steps
 
 ```bash
-# 1. Clone repository
+# 1. Clone the repository
 git clone <repository-url>
-cd Project-PKL
+cd POS-PKL
 
-# 2. Install dependensi PHP
+# 2. Install PHP dependencies
 composer install
 
-# 3. Install dependensi JavaScript
+# 3. Install JavaScript dependencies
 npm install
 
-# 4. Salin file environment
+# 4. Environment setup
 cp .env.example .env
 
 # 5. Generate application key
 php artisan key:generate
 
-# 6. Konfigurasi database di .env (lihat bagian Konfigurasi)
+# 6. Configure database parameters in .env
 
-# 7. Jalankan migrasi database
+# 7. Run database migrations
 php artisan migrate
 
-# 8. (Opsional) Jalankan seeder jika tersedia
-php artisan db:seed
-
-# 9. Build asset frontend
+# 8. Build production assets
 npm run build
 
-# 10. Jalankan server development
+# 9. Start local development server
 php artisan serve
 ```
 
 ---
 
-## ⚙️ Konfigurasi
+## Configuration
 
-### File `.env` — Variabel Penting
+### Environment Variables (`.env`)
 
 ```env
-# Aplikasi
-APP_NAME=Laravel
+APP_NAME=POS-PKL
 APP_URL=http://127.0.0.1:8000
 APP_TIMEZONE=Asia/Jakarta
 APP_LOCALE=id
 
-# Database (PostgreSQL)
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=nama_database
-DB_USERNAME=username
-DB_PASSWORD=password
+DB_DATABASE=your_database_name
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 ```
-
-### Zona Waktu
-Seluruh sistem menggunakan **WIB (Asia/Jakarta)**. Konfigurasi ini diatur di:
-- `config/app.php` → `timezone` & `locale`
-- Semua kolom tanggal di tabel Filament menggunakan `.timezone('Asia/Jakarta')`
 
 ---
 
-## 💡 Penggunaan
+## Usage & Workflows
 
-### Akses Halaman
+### Access Points
 
-| Halaman | URL | Keterangan |
+| Module | URL Path | Description |
 |---|---|---|
-| **Admin Panel** | `/admin` | Login → Dashboard, kelola semua data |
-| **Halaman Kasir** | `/kasir` | Interface kasir untuk transaksi penjualan |
+| **Admin Panel** | `/admin` | Dashboard, master data management, and report auditing |
+| **Cashier POS** | `/kasir` | Dedicated interface for processing customer checkout transactions |
 
-### Alur Kerja Utama
+### Standard Operational Workflow
 
-1. **Setup Data Master** → Tambahkan Gudang, Supplier, Jenis Barang, lalu Barang
-2. **Input Pembelian** → Tambah transaksi Barang Masuk dari Supplier (stok otomatis bertambah)
-3. **Proses Penjualan** → Buka halaman Kasir (`/kasir`), scan/cari barang, proses pembayaran
-4. **Monitor Dashboard** → Cek omset harian, grafik tren, dan peringatan stok menipis
-5. **Audit Stok** → Buka Kartu Stok untuk melihat riwayat lengkap mutasi setiap barang
+1. **Master Data Initialization**: Setup Warehouses, Suppliers, Product Categories, and Products in `/admin`.
+2. **Stock Acquisition**: Record incoming inventory via **Barang Masuk (Purchases)**. Stock balances increase automatically.
+3. **Point of Sale Execution**: Access `/kasir`, select products, apply discounts if necessary, enter received cash, and finalize checkout.
+4. **Inventory Audit**: Inspect **Kartu Stok (Stock Ledger)** to verify exact item movements and stock balances.
 
 ---
 
-## 🗄️ Skema Database
+## Database Schema
 
-### Tabel Utama
+### Core Tables
 
-| Tabel | Deskripsi |
+| Table Name | Description |
 |---|---|
-| `barang` | Master data barang |
-| `jenis_barang` | Kategori/jenis barang |
-| `gudang` | Data gudang penyimpanan |
-| `barang_gudang` | Pivot: stok barang per gudang |
-| `supplier` | Data pemasok |
-| `customer` | Data pelanggan |
-| `pembelian` | Header transaksi pembelian |
-| `detail_beli` | Detail item per pembelian |
-| `penjualan` | Header transaksi penjualan |
-| `detail_jual` | Detail item per penjualan |
-| `perpindahan_barang` | Header perpindahan antar gudang |
-| `perpindahan_barang_detail` | Detail item perpindahan |
-| `kartu_stok` | Log mutasi stok (masuk/keluar/pindah) |
-| `activity_log` | Audit trail (Spatie) |
-| `users` | Data pengguna/admin |
-
-### Relasi Utama
-
-```
-Barang ──┬── belongsToMany ── Gudang (via barang_gudang + stok)
-         ├── belongsTo ─── JenisBarang
-         └── hasMany ───── KartuStok
-
-Pembelian ──┬── belongsTo ── Supplier, Gudang, User
-            └── hasMany ──── DetailBeli → belongsTo Barang
-
-Penjualan ──┬── belongsTo ── Customer (nullable), Gudang, User
-            └── hasMany ──── DetailJual → belongsTo Barang
-
-KartuStok ── belongsTo ── Barang, Gudang
-```
+| `barang` | Product master details |
+| `jenis_barang` | Product categories |
+| `gudang` | Warehouse locations |
+| `barang_gudang` | Pivot table tracking product quantity per warehouse |
+| `supplier` | Supplier records |
+| `customer` | Customer directory |
+| `pembelian` | Purchase headers |
+| `detail_beli` | Line items for purchases |
+| `penjualan` | Sales headers |
+| `detail_jual` | Line items for sales |
+| `perpindahan_barang` | Inter-warehouse transfer headers |
+| `perpindahan_barang_detail` | Line items for warehouse transfers |
+| `kartu_stok` | Immutable stock mutation ledger |
+| `activity_log` | Audit logs generated by Spatie Activitylog |
+| `users` | User credentials and roles |
 
 ---
 
-## 📝 Lisensi
+## License
 
-Project ini dibuat untuk keperluan **Praktik Kerja Lapangan (PKL)**.
+This repository is developed for **Field Industrial Work (PKL / Internship)** requirements.
