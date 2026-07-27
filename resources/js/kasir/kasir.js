@@ -609,7 +609,16 @@ async function init() {
 
     // diskon & bayar
     document.getElementById('input-diskon').addEventListener('input', (e) => {
-        state.diskonTransaksi = Number(e.target.value) || 0;
+        let raw = e.target.value.replace(/\D/g, ''); // hanya angka
+        if (raw !== '') {
+            let val = Number(raw);
+            if (val > 100) val = 100;
+            e.target.value = val;
+            state.diskonTransaksi = val;
+        } else {
+            e.target.value = '';
+            state.diskonTransaksi = 0;
+        }
         renderCart();
     });
 

@@ -175,7 +175,7 @@
                         </div>
                         <div class="flex justify-between items-center gap-3">
                             <span class="text-zinc-500">Diskon (%)</span>
-                            <input id="input-diskon" type="number" min="0" max="100" placeholder="0"
+                            <input id="input-diskon" type="text" inputmode="numeric" placeholder="0"
                                 class="w-20 text-right text-sm font-semibold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 tabular-nums placeholder:font-normal placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors">
                         </div>
                         <div class="flex justify-between items-baseline border-t border-zinc-100 pt-3">
