@@ -7,33 +7,24 @@
     <title>Kasir - Toko PKL</title>
     <link rel="preconnect" href="https://api.fontshare.com">
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-    {{-- data dari database disuntik ke JS di sini (tanpa API). --}}
-    {{-- $kasirData dikirim KasirController@index; @isset biar view tetep bisa --}}
-    {{-- dibuka manual tanpa controller (jatuh ke mode mock otomatis) --}}
     @isset($kasirData)
         <script>window.KASIR_DATA = @json($kasirData);</script>
     @endisset
     @vite(['resources/css/app.css', 'resources/js/kasir/kasir.js'])
     <style>
         body { font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif; }
-        /* scrollbar tipis biar gak ganggu layout */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 99px; }
         ::-webkit-scrollbar-track { background: transparent; }
 
-        /* ---------- animasi (semua di-skip kalau user set reduced motion) ---------- */
         @media (prefers-reduced-motion: no-preference) {
-            /* reveal awal + kartu produk (stagger via --i) */
             .anim-fade-up {
                 animation: fade-up .45s cubic-bezier(.16, 1, .3, 1) both;
                 animation-delay: calc(var(--i, 0) * 35ms);
             }
-            /* modal & dropdown */
             .anim-scale-in { animation: scale-in .22s cubic-bezier(.16, 1, .3, 1) both; }
             .anim-backdrop { animation: fade .2s ease-out both; }
-            /* toast */
             .anim-toast { animation: toast-up .3s cubic-bezier(.16, 1, .3, 1) both; }
-            /* angka total "pop" halus pas berubah */
             .anim-pop { animation: pop .25s cubic-bezier(.16, 1, .3, 1); }
         }
         @keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -42,7 +33,6 @@
         @keyframes toast-up { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* pas print, cuma struk yang keluar */
         @media print {
             body * { visibility: hidden; }
             #modal-struk, #modal-struk * { visibility: visible; }
@@ -53,6 +43,7 @@
 </head>
 <body class="bg-zinc-50 text-zinc-900 antialiased">
 
+    {{-- LOADING SKELETON --}}
     <div id="loading" class="fixed inset-0 flex flex-col h-dvh">
         <div class="h-16 shrink-0 bg-white border-b border-zinc-200 px-6 flex items-center gap-3">
             <div class="w-8 h-8 rounded-lg bg-zinc-200 animate-pulse"></div>
@@ -78,6 +69,7 @@
         </div>
     </div>
 
+    {{-- MAIN KASIR APP --}}
     <div id="kasir-app" class="hidden h-dvh flex flex-col">
 
         {{-- HEADER --}}
@@ -133,13 +125,12 @@
             <main class="flex-1 flex flex-col min-w-0 px-8 pt-7 overflow-hidden">
                 <div class="anim-fade-up max-w-5xl w-full mx-auto flex flex-col flex-1 overflow-hidden" style="--i: 1">
                     <div class="relative">
-                        {{-- ikon: Tabler "search" --}}
                         <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-zinc-400 pointer-events-none"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>
                         </svg>
                         <input id="input-search" type="text" placeholder="Cari nama barang"
-                            class="w-full h-12 border border-zinc-200 rounded-xl pl-11 pr-10 text-sm font-medium bg-white placeholder:text-zinc-400 placeholder:font-normal shadow-sm shadow-zinc-100 focus:outline-none focus:border-zinc-900 transition-colors">
+                            class="w-full h-12 border border-zinc-200 rounded-xl pl-11 pr-10 text-sm font-medium bg-white placeholder:text-zinc-400 placeholder:font-normal shadow-xs shadow-zinc-100 focus:outline-none focus:border-zinc-900 transition-colors">
                         <button id="btn-clear-search" class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 text-zinc-400 hover:text-zinc-900 hidden flex items-center justify-center transition-colors">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
@@ -161,7 +152,7 @@
                             class="hidden min-w-6 h-6 px-1.5 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center tabular-nums"></span>
                     </div>
                     <button id="btn-reset"
-                        class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors">Kosongkan</button>
+                        class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
                 </div>
 
                 <div id="cart-items" class="flex-1 overflow-y-auto px-6 py-4 space-y-3"></div>
@@ -196,7 +187,7 @@
                         <div class="flex gap-1 bg-zinc-200/60 rounded-xl p-1">
                             @foreach (['tunai' => 'Tunai', 'qris' => 'QRIS', 'transfer' => 'Transfer'] as $val => $label)
                                 <label class="flex-1 text-center text-sm font-semibold text-zinc-500 rounded-lg py-2 cursor-pointer transition
-                                              has-checked:bg-white has-checked:text-zinc-900 has-checked:shadow-sm">
+                                              has-checked:bg-white has-checked:text-zinc-900 has-checked:shadow-xs">
                                     <input type="radio" name="jenis_pembayaran" value="{{ $val }}"
                                         class="hidden" {{ $val === 'tunai' ? 'checked' : '' }}>
                                     {{ $label }}
@@ -210,15 +201,15 @@
                                 <input id="input-bayar" type="text" inputmode="numeric" placeholder="Rp 0"
                                     class="w-32 text-right text-sm font-semibold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 tabular-nums placeholder:font-normal placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors">
                             </div>
-                            <button id="btn-uang-pas"
-                                class="w-full text-xs font-semibold text-zinc-600 bg-white border border-zinc-200 hover:border-zinc-900 hover:text-zinc-900 rounded-lg py-2 tabular-nums transition-colors">Uang pas</button>
+                            <button id="btn-uang-pas" type="button"
+                                class="w-full text-xs font-semibold text-zinc-600 bg-white border border-zinc-200 hover:border-zinc-900 hover:text-zinc-900 rounded-lg py-2 tabular-nums transition-colors cursor-pointer">Uang pas</button>
                             <div class="flex justify-between items-center">
                                 <span class="text-zinc-500">Kembalian</span>
                                 <span id="lbl-kembalian" class="font-bold tabular-nums">Rp 0</span>
                             </div>
                         </div>
 
-                        {{-- QRIS: QR dummy buat scan --}}
+                        {{-- QRIS --}}
                         <div id="row-qris" style="display:none">
                             <div class="bg-white border border-zinc-200 rounded-xl p-4 flex items-center gap-4">
                                 <img src="{{ asset('img/pay/qris-dummy.png') }}" alt="Kode QRIS"
@@ -231,7 +222,7 @@
                             </div>
                         </div>
 
-                        {{-- Transfer: pilih bank tujuan --}}
+                        {{-- Transfer --}}
                         <div id="row-transfer" style="display:none" class="grid grid-cols-2 gap-2">
                             @foreach (['bca' => 'BCA', 'mandiri' => 'Mandiri', 'bri' => 'BRI', 'bni' => 'BNI'] as $kode => $nama)
                                 <label class="bank-opt bg-white border border-zinc-200 rounded-xl px-3 py-2.5 flex items-center justify-center cursor-pointer transition
@@ -244,8 +235,8 @@
                         </div>
                     </div>
 
-                    <button id="btn-bayar"
-                        class="w-full h-13 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none text-white text-sm font-bold rounded-xl py-4 tabular-nums transition">
+                    <button id="btn-bayar" type="button"
+                        class="w-full h-13 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none text-white text-sm font-bold rounded-xl py-4 tabular-nums transition cursor-pointer">
                         Bayar
                     </button>
                 </div>
@@ -254,20 +245,20 @@
     </div>
 
     {{-- MODAL STRUK --}}
-    <div id="modal-struk" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center z-40 p-4">
+    <div id="modal-struk" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
         <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 max-h-[90dvh] overflow-y-auto shadow-2xl">
             <div id="struk-body"></div>
             <div id="struk-actions" class="flex gap-2.5 mt-7">
-                <button id="btn-print-struk"
-                    class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition">Cetak Struk</button>
-                <button id="btn-tutup-struk"
-                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors">Transaksi Baru</button>
+                <button id="btn-print-struk" type="button"
+                    class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Cetak Struk</button>
+                <button id="btn-tutup-struk" type="button"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Transaksi Baru</button>
             </div>
         </div>
     </div>
 
     {{-- MODAL KONFIRMASI KOSONGKAN --}}
-    <div id="modal-konfirmasi-reset" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center z-40 p-4">
+    <div id="modal-konfirmasi-reset" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
         <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
             <div class="text-center">
                 <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
@@ -279,10 +270,33 @@
                 <p class="text-sm text-zinc-500 mt-2">Semua item di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
             <div class="flex gap-2.5 mt-7">
-                <button id="btn-batal-reset"
+                <button id="btn-batal-reset" type="button"
                     class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
-                <button id="btn-konfirmasi-reset"
+                <button id="btn-konfirmasi-reset" type="button"
                     class="flex-1 bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Kosongkan</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL KONFIRMASI PINDAH GUDANG --}}
+    <div id="modal-konfirmasi-gudang" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 9v4"/><path d="M12 17h.01"/><path d="M5 19h14a2 2 0 0 0 1.84-2.75L13.74 4.15a2 2 0 0 0-3.48 0L3.16 16.25A2 2 0 0 0 5 19z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Pindah Gudang Penyimpanan?</h3>
+                <p class="text-sm text-zinc-500 mt-2">
+                    Ada item di keranjang belanja. Jika Anda pindah ke <span id="target-nama-gudang" class="font-bold text-zinc-900">gudang ini</span>, pesanan saat ini akan dikosongkan.
+                </p>
+            </div>
+            <div class="flex gap-2.5 mt-7">
+                <button id="btn-batal-gudang" type="button"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                <button id="btn-konfirmasi-gudang" type="button"
+                    class="flex-1 bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Pindah Gudang</button>
             </div>
         </div>
     </div>
