@@ -164,7 +164,7 @@
                         class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors">Kosongkan</button>
                 </div>
 
-                <div id="cart-items" class="flex-1 overflow-y-auto px-6"></div>
+                <div id="cart-items" class="flex-1 overflow-y-auto px-6 py-4 space-y-3"></div>
 
                 <div class="shrink-0 border-t border-zinc-200 bg-zinc-50/80 px-6 pt-5 pb-6 space-y-4">
 
@@ -262,6 +262,27 @@
                     class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition">Cetak Struk</button>
                 <button id="btn-tutup-struk"
                     class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors">Transaksi Baru</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL KONFIRMASI KOSONGKAN --}}
+    <div id="modal-konfirmasi-reset" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center z-40 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/><path d="M8 6v-2a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2l-1-14"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Kosongkan Pesanan?</h3>
+                <p class="text-sm text-zinc-500 mt-2">Semua item di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
+            </div>
+            <div class="flex gap-2.5 mt-7">
+                <button id="btn-batal-reset"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                <button id="btn-konfirmasi-reset"
+                    class="flex-1 bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Kosongkan</button>
             </div>
         </div>
     </div>

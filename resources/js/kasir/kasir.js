@@ -165,6 +165,30 @@ function setJumlah(barangId, jumlah) {
     render();
 }
 
+function ubahSatuanItem(barangId, newSatuan) {
+    const item = state.cart.find((i) => i.barang_id === barangId);
+    if (!item) return;
+
+    const barang = state.barang.find((b) => b.id === barangId);
+    if (!barang) return;
+
+    const units = barang.units ?? [{ level: 1, satuan: barang.satuan ?? 'Pcs', faktor: 1, harga_jual: barang.harga_jual }];
+    const unitObj = units.find((u) => u.satuan === newSatuan) ?? units[0];
+    const meFaktor = unitObj ? unitObj.faktor : 1;
+    const meHarga = unitObj ? unitObj.harga_jual : barang.harga_jual;
+    const stokDasar = stokBarang(barang);
+
+    if (item.jumlah * meFaktor > stokDasar) {
+        toast(`Stok tidak cukup untuk ${item.jumlah} ${newSatuan} (Tersedia: ${stokDasar} ${barang.satuan ?? 'Pcs'})`, true);
+        render();
+        return;
+    }
+
+    item.satuan = newSatuan;
+    item.harga = meHarga;
+    render();
+}
+
 function resetTransaksi() {
     state.cart = [];
     state.diskonTransaksi = 0;
@@ -272,9 +296,10 @@ function tampilkanStruk(payload) {
     const rows = payload.details
         .map((d) => {
             const nama = state.barang.find((b) => b.id === d.barang_id)?.nama_barang ?? '-';
+            const satuanStr = d.satuan ? ` ${d.satuan}` : '';
             return `<tr>
                 <td class="py-0.5 pr-2">${nama}</td>
-                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} x ${rupiah(d.harga)}</td>
+                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah}${satuanStr} x ${rupiah(d.harga)}</td>
                 <td class="py-0.5 pl-2 text-right">${rupiah(d.subtotal)}</td>
             </tr>`;
         })
@@ -393,12 +418,18 @@ function renderProduk() {
                     </div>
                     <span class="text-[11px] font-semibold whitespace-nowrap px-2 py-0.5 rounded-full
                         ${habis ? 'bg-red-50 text-red-500' : menipis ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-400'}">
-                        ${habis ? 'Habis' : `${stok} ${b.satuan ?? ''}`}
+                        ${habis ? 'Habis' : `${stok} ${b.satuan ?? 'Pcs'}`}
                     </span>
                 </div>
                 <div>
                     <p class="font-bold text-sm leading-snug line-clamp-2">${b.nama_barang}</p>
-                    <p class="font-black tracking-tight tabular-nums mt-1.5">${rupiah(b.harga_jual)}</p>
+                    <div class="flex items-center justify-between gap-1 mt-1.5">
+                        <div class="flex items-baseline gap-1">
+                            <span class="font-black tracking-tight tabular-nums">${rupiah(b.harga_jual)}</span>
+                            <span class="text-xs font-semibold text-zinc-400">/ ${b.satuan ?? 'Pcs'}</span>
+                        </div>
+                        ${b.units && b.units.length > 1 ? `<span class="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded-md" title="Tersedia ${b.units.length} pilihan satuan">${b.units.length} satuan</span>` : ''}
+                    </div>
                 </div>
             </button>`;
         })
@@ -424,27 +455,50 @@ function renderCart() {
             .map((i) => {
                 const b = state.barang.find((x) => x.id === i.barang_id);
                 const units = b?.units ?? [];
-                let unitHtml = `<span class="text-xs text-zinc-400 tabular-nums">${rupiah(i.harga)} / ${i.satuan}</span>`;
-                if (units.length > 1) {
-                    const opts = units
-                        .map((u) => `<option value="${u.satuan}" ${u.satuan === i.satuan ? 'selected' : ''}>${u.satuan} (${rupiah(u.harga_jual)})</option>`)
-                        .join('');
-                    unitHtml = `<select data-unit="${i.barang_id}" class="text-xs bg-zinc-100 border-0 rounded px-1.5 py-0.5 font-bold text-zinc-700 focus:outline-none hover:bg-zinc-200 transition cursor-pointer">${opts}</select>`;
-                }
-                return `<div class="flex items-center gap-3 py-2.5 border-b border-zinc-100 last:border-0">
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold truncate">${i.nama_barang}</p>
-                    <div class="mt-0.5">${unitHtml}</div>
+                return `<div class="group relative bg-white hover:bg-zinc-50/70 rounded-xl p-3 border border-zinc-200/80 hover:border-zinc-300 shadow-xs transition-all duration-200 space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-zinc-900 leading-snug truncate" title="${i.nama_barang}">${i.nama_barang}</p>
+                        <p class="text-xs font-semibold text-zinc-400 mt-0.5 tabular-nums">${rupiah(i.harga)} / ${i.satuan}</p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-sm font-black tabular-nums text-zinc-900">${rupiah(subtotalItem(i))}</span>
+                        <button data-del="${i.barang_id}" class="w-6 h-6 rounded-lg text-zinc-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center font-bold text-sm transition-all cursor-pointer" title="Hapus">×</button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-0.5 bg-zinc-100 rounded-lg p-0.5">
-                    <button data-minus="${i.barang_id}" class="w-7 h-7 rounded-md hover:bg-white hover:shadow-sm text-zinc-500 font-bold transition">−</button>
-                    <input data-qty="${i.barang_id}" type="number" min="1" value="${i.jumlah}"
-                        class="w-10 text-center text-sm font-bold tabular-nums bg-transparent focus:outline-none focus:bg-white focus:shadow-sm rounded-md py-1
-                               [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-                    <button data-plus="${i.barang_id}" class="w-7 h-7 rounded-md hover:bg-white hover:shadow-sm text-zinc-500 font-bold transition">+</button>
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100">
+                    <div class="flex-1 min-w-0">
+                        ${units.length > 1 ? `
+                            <div class="relative w-full">
+                                <button type="button" data-custom-dd-btn="${i.barang_id}"
+                                    class="w-full flex items-center justify-between gap-2 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/60 text-zinc-800 text-xs font-bold rounded-lg px-2.5 py-1.5 focus:outline-none transition cursor-pointer select-none">
+                                    <span class="truncate">${i.satuan} (${rupiah(i.harga)})</span>
+                                    <svg data-custom-dd-chevron class="w-3.5 h-3.5 text-zinc-500 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M4 6l4 4 4-4"/>
+                                    </svg>
+                                </button>
+                                <div data-custom-dd-menu="${i.barang_id}"
+                                    class="hidden anim-scale-in absolute left-0 top-full mt-1.5 w-max min-w-full z-50 bg-white border border-zinc-200 rounded-xl shadow-xl shadow-zinc-950/10 p-1.5 space-y-0.5">
+                                    ${units.map(u => {
+                                        const active = u.satuan === i.satuan;
+                                        return `<button type="button" data-custom-dd-val="${u.satuan}" data-barang-id="${i.barang_id}"
+                                            class="w-full flex items-center justify-between gap-3 text-left text-xs font-bold rounded-lg px-2.5 py-2 cursor-pointer transition-colors ${active ? 'bg-zinc-900 text-white shadow-xs' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'}">
+                                            <span class="whitespace-nowrap">${u.satuan} <span class="font-normal opacity-80">(${rupiah(u.harga_jual)})</span></span>
+                                            ${active ? '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>' : ''}
+                                        </button>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        ` : `<span class="inline-block text-[11px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-md uppercase tracking-wider">${i.satuan}</span>`}
+                    </div>
+                    <div class="flex items-center gap-0.5 bg-zinc-100/90 rounded-lg p-0.5 shrink-0">
+                        <button data-minus="${i.barang_id}" class="w-7 h-7 rounded-md hover:bg-white hover:shadow-xs text-zinc-600 font-bold transition flex items-center justify-center cursor-pointer select-none">−</button>
+                        <input data-qty="${i.barang_id}" type="number" min="1" value="${i.jumlah}"
+                            class="w-9 text-center text-sm font-bold tabular-nums bg-transparent focus:outline-none focus:bg-white focus:shadow-xs rounded-md py-0.5
+                                   [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                        <button data-plus="${i.barang_id}" class="w-7 h-7 rounded-md hover:bg-white hover:shadow-xs text-zinc-600 font-bold transition flex items-center justify-center cursor-pointer select-none">+</button>
+                    </div>
                 </div>
-                <p class="w-24 text-right text-sm font-bold tabular-nums">${rupiah(subtotalItem(i))}</p>
-                <button data-del="${i.barang_id}" class="text-zinc-300 hover:text-red-500 px-1 font-bold transition-colors" title="Hapus">×</button>
             </div>`;
             })
             .join('');
@@ -593,8 +647,8 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
 
 // tutup semua dropdown kalau klik di luar
 document.addEventListener('click', () => {
-    document.querySelectorAll('[data-dd-menu]').forEach((m) => m.classList.add('hidden'));
-    document.querySelectorAll('[data-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+    document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu]').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
 });
 
 // ------------------------- INIT -------------------------
@@ -756,9 +810,38 @@ async function init() {
         const plus = e.target.closest('[data-plus]');
         const minus = e.target.closest('[data-minus]');
         const del = e.target.closest('[data-del]');
+        const customDdBtn = e.target.closest('[data-custom-dd-btn]');
+        const customDdVal = e.target.closest('[data-custom-dd-val]');
+
         if (plus) ubahJumlah(Number(plus.dataset.plus), 1);
         if (minus) ubahJumlah(Number(minus.dataset.minus), -1);
         if (del) hapusItem(Number(del.dataset.del));
+
+        if (customDdBtn) {
+            e.stopPropagation();
+            const bId = customDdBtn.dataset.customDdBtn;
+            const menu = document.querySelector(`[data-custom-dd-menu="${bId}"]`);
+            const chevron = customDdBtn.querySelector('[data-custom-dd-chevron]');
+            if (!menu) return;
+
+            const willOpen = menu.classList.contains('hidden');
+            document.querySelectorAll('[data-custom-dd-menu], [data-dd-menu]').forEach((m) => m.classList.add('hidden'));
+            document.querySelectorAll('[data-custom-dd-chevron], [data-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+
+            if (willOpen) {
+                menu.classList.remove('hidden');
+                if (chevron) chevron.classList.add('rotate-180');
+                menu.classList.remove('anim-scale-in');
+                void menu.offsetWidth;
+                menu.classList.add('anim-scale-in');
+            }
+        }
+
+        if (customDdVal) {
+            const bId = Number(customDdVal.dataset.barangId);
+            const val = customDdVal.dataset.customDdVal;
+            ubahSatuanItem(bId, val);
+        }
     });
     // ketik jumlah manual / ganti satuan (change = pas Enter / pindah fokus / pilih dropdown)
     document.getElementById('cart-items').addEventListener('change', (e) => {
@@ -820,7 +903,16 @@ async function init() {
         togglePaymentDetails();
     });
     document.getElementById('btn-bayar').addEventListener('click', prosesBayar);
-    document.getElementById('btn-reset').addEventListener('click', resetTransaksi);
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        document.getElementById('modal-konfirmasi-reset').classList.remove('hidden');
+    });
+    document.getElementById('btn-batal-reset').addEventListener('click', () => {
+        document.getElementById('modal-konfirmasi-reset').classList.add('hidden');
+    });
+    document.getElementById('btn-konfirmasi-reset').addEventListener('click', () => {
+        document.getElementById('modal-konfirmasi-reset').classList.add('hidden');
+        resetTransaksi();
+    });
     document.getElementById('btn-tutup-struk').addEventListener('click', () => {
         document.getElementById('modal-struk').classList.add('hidden');
     });
