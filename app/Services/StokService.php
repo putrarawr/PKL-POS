@@ -124,26 +124,40 @@ class StokService
         DB::transaction(function () use ($pembelian) {
             $pembelian->loadMissing('details.barang', 'supplier');
             foreach ($pembelian->details as $detail) {
-                $this->tambahStok($detail->barang_id, $pembelian->gudang_id, $detail->jumlah, [
+                $barang = $detail->barang;
+                $faktor = $barang ? $barang->getFaktorKonversi($detail->satuan) : 1;
+                $jumlahDasar = $detail->jumlah * $faktor;
+
+                $this->tambahStok($detail->barang_id, $pembelian->gudang_id, $jumlahDasar, [
                     'nomer_entry' => $pembelian->nomer_entry,
                     'tanggal' => $pembelian->tanggal,
                     'harga' => $detail->harga,
-                    'keterangan' => 'Pembelian dari ' . ($pembelian->supplier->nama_supplier ?? '-'),
+                    'keterangan' => 'Pembelian dari ' . ($pembelian->supplier->nama_supplier ?? '-') . ($detail->satuan ? " ({$detail->jumlah} {$detail->satuan})" : ''),
                 ]);
-                // harga master ikut harga beli terakhir
-                $detail->barang->update(['harga_beli' => $detail->harga]);
+                // harga master Level 1 dihitung proporsional dari harga per-satuan beli
+                if ($barang) {
+                    $hargaBeliDasar = (int) round($detail->harga / max(1, $faktor));
+                    $barang->update(['harga_beli' => $hargaBeliDasar]);
+                }
             }
         });
     }
 
     public function snapshotPembelian(Pembelian $pembelian): array
     {
+        $pembelian->loadMissing('details.barang');
+
         return [
             'gudang_id' => $pembelian->gudang_id,
             'nomer_entry' => $pembelian->nomer_entry,
-            'details' => $pembelian->details()->get(['barang_id', 'jumlah'])
-                ->map(fn ($d) => ['barang_id' => $d->barang_id, 'jumlah' => $d->jumlah])
-                ->all(),
+            'details' => $pembelian->details->map(function ($d) {
+                $faktor = $d->barang ? $d->barang->getFaktorKonversi($d->satuan) : 1;
+
+                return [
+                    'barang_id' => $d->barang_id,
+                    'jumlah' => $d->jumlah * $faktor,
+                ];
+            })->all(),
         ];
     }
 
@@ -163,16 +177,20 @@ class StokService
     public function terapkanPerpindahan(PerpindahanBarang $pindah): void
     {
         DB::transaction(function () use ($pindah) {
-            $pindah->loadMissing('details', 'gudangAsal', 'gudangTujuan');
+            $pindah->loadMissing('details.barang', 'gudangAsal', 'gudangTujuan');
             foreach ($pindah->details as $detail) {
+                $barang = $detail->barang;
+                $faktor = $barang ? $barang->getFaktorKonversi($detail->satuan ?? null) : 1;
+                $jumlahDasar = $detail->jumlah * $faktor;
+
                 $konteks = [
                     'nomer_entry' => $pindah->nomer_entry ?? 'PIN-' . $pindah->id,
                     'tanggal' => $pindah->tanggal,
-                    'keterangan' => "Pindah {$pindah->gudangAsal->nama_gudang} → {$pindah->gudangTujuan->nama_gudang}",
+                    'keterangan' => "Pindah {$pindah->gudangAsal->nama_gudang} → {$pindah->gudangTujuan->nama_gudang}" . ($detail->satuan ? " ({$detail->jumlah} {$detail->satuan})" : ''),
                 ];
-                $this->kurangiStok($detail->barang_id, $pindah->gudang_asal_id, $detail->jumlah,
+                $this->kurangiStok($detail->barang_id, $pindah->gudang_asal_id, $jumlahDasar,
                     $konteks + ['jenis' => KartuStok::JENIS_PINDAH_KELUAR]);
-                $this->tambahStok($detail->barang_id, $pindah->gudang_tujuan_id, $detail->jumlah,
+                $this->tambahStok($detail->barang_id, $pindah->gudang_tujuan_id, $jumlahDasar,
                     $konteks + ['jenis' => KartuStok::JENIS_PINDAH_MASUK]);
             }
         });
@@ -180,14 +198,21 @@ class StokService
 
     public function snapshotPerpindahan(PerpindahanBarang $pindah): array
     {
+        $pindah->loadMissing('details.barang');
+
         return [
             'id' => $pindah->id,
             'nomer_entry' => $pindah->nomer_entry,
             'gudang_asal_id' => $pindah->gudang_asal_id,
             'gudang_tujuan_id' => $pindah->gudang_tujuan_id,
-            'details' => $pindah->details()->get(['barang_id', 'jumlah'])
-                ->map(fn ($d) => ['barang_id' => $d->barang_id, 'jumlah' => $d->jumlah])
-                ->all(),
+            'details' => $pindah->details->map(function ($d) {
+                $faktor = $d->barang ? $d->barang->getFaktorKonversi($d->satuan ?? null) : 1;
+
+                return [
+                    'barang_id' => $d->barang_id,
+                    'jumlah' => $d->jumlah * $faktor,
+                ];
+            })->all(),
         ];
     }
 

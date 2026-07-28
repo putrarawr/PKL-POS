@@ -14,9 +14,11 @@ class BarangForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Informasi Dasar Barang')
                     ->description('Data utama barang dan harga eceran dasar (Level 1)')
+                    ->columnSpanFull()
                     ->schema([
                         Grid::make(2)->schema([
                             Select::make('jenis_barang_id')
@@ -49,42 +51,82 @@ class BarangForm
                         ]),
                     ]),
 
-                Section::make('Tingkatan Satuan (Multi-Level Units)')
-                    ->description('Atur konversi satuan bertingkat (Pack, Slof, Dus, Bal, dll). Kosongkan jika hanya 1 level satuan.')
+                Section::make('Tingkatan Satuan & Harga Grosir (Level 2 - 4)')
+                    ->description('Opsional: Atur konversi satuan bertingkat (Pack, Slof, Bal, Dus, dll) & harga khusus. Kosongkan jika produk hanya memiliki 1 satuan.')
                     ->collapsible()
+                    ->columnSpanFull()
                     ->schema([
                         // Level 2
-                        Grid::make(2)->schema([
-                            TextInput::make('satuan_2')
-                                ->label('Satuan Level 2')
-                                ->placeholder('Misal: Pack, Renceng, Ikat'),
-                            TextInput::make('isi_satuan_2')
-                                ->label('Isi Konversi Level 2')
-                                ->numeric()
-                                ->placeholder('Jumlah dalam satuan Level 1 (Misal: 10)'),
-                        ]),
+                        Section::make('Satuan Level 2')
+                            ->schema([
+                                Grid::make(2)->schema([
+                                    TextInput::make('satuan_2')
+                                        ->label('Nama Satuan Level 2')
+                                        ->placeholder('Misal: Pack, Renceng'),
+                                    TextInput::make('isi_satuan_2')
+                                        ->label('Isi Konversi (Jumlah Level 1)')
+                                        ->numeric()
+                                        ->placeholder('Misal: 20'),
+                                    TextInput::make('harga_beli_2')
+                                        ->label('Harga Beli Level 2')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                    TextInput::make('harga_jual_2')
+                                        ->label('Harga Jual Level 2')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                ]),
+                            ]),
 
                         // Level 3
-                        Grid::make(2)->schema([
-                            TextInput::make('satuan_3')
-                                ->label('Satuan Level 3')
-                                ->placeholder('Misal: Slof, Dus, Box'),
-                            TextInput::make('isi_satuan_3')
-                                ->label('Isi Konversi Level 3')
-                                ->numeric()
-                                ->placeholder('Jumlah dalam satuan Level 1 (Misal: 100)'),
-                        ]),
+                        Section::make('Satuan Level 3')
+                            ->schema([
+                                Grid::make(2)->schema([
+                                    TextInput::make('satuan_3')
+                                        ->label('Nama Satuan Level 3')
+                                        ->placeholder('Misal: Slof, Box'),
+                                    TextInput::make('isi_satuan_3')
+                                        ->label('Isi Konversi (Jumlah Level 2)')
+                                        ->numeric()
+                                        ->placeholder('Misal: 10'),
+                                    TextInput::make('harga_beli_3')
+                                        ->label('Harga Beli Level 3')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                    TextInput::make('harga_jual_3')
+                                        ->label('Harga Jual Level 3')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                ]),
+                            ]),
 
                         // Level 4
-                        Grid::make(2)->schema([
-                            TextInput::make('satuan_4')
-                                ->label('Satuan Level 4')
-                                ->placeholder('Misal: Bal, Karton, Palet'),
-                            TextInput::make('isi_satuan_4')
-                                ->label('Isi Konversi Level 4')
-                                ->numeric()
-                                ->placeholder('Jumlah dalam satuan Level 1 (Misal: 1000)'),
-                        ]),
+                        Section::make('Satuan Level 4')
+                            ->schema([
+                                Grid::make(2)->schema([
+                                    TextInput::make('satuan_4')
+                                        ->label('Nama Satuan Level 4')
+                                        ->placeholder('Misal: Bal, Karton'),
+                                    TextInput::make('isi_satuan_4')
+                                        ->label('Isi Konversi (Jumlah Level 3)')
+                                        ->numeric()
+                                        ->placeholder('Misal: 10'),
+                                    TextInput::make('harga_beli_4')
+                                        ->label('Harga Beli Level 4')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                    TextInput::make('harga_jual_4')
+                                        ->label('Harga Jual Level 4')
+                                        ->numeric()
+                                        ->prefix('Rp')
+                                        ->placeholder('Otomatis jika kosong'),
+                                ]),
+                            ]),
                     ]),
             ]);
     }

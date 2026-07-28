@@ -77,25 +77,25 @@ function tambahKeCart(barangId) {
     const barang = state.barang.find((b) => b.id === barangId);
     if (!barang) return;
 
-    const stok = stokBarang(barang);
+    const stokDasar = stokBarang(barang);
     const existing = state.cart.find((i) => i.barang_id === barangId);
-    const jumlahSekarang = existing ? existing.jumlah : 0;
+    const satuanDefault = barang.units?.[0]?.satuan ?? barang.satuan ?? 'Pcs';
+    const unitObj = barang.units?.find((u) => u.satuan === (existing ? existing.satuan : satuanDefault)) ?? barang.units?.[0];
+    const faktor = unitObj ? unitObj.faktor : 1;
+    const hargaUnit = unitObj ? unitObj.harga_jual : barang.harga_jual;
 
-    if (jumlahSekarang + 1 > stok) {
+    const jumlahDasarSekarang = existing ? (existing.jumlah * faktor) : 0;
+
+    if (jumlahDasarSekarang + faktor > stokDasar) {
         const rekomendasi = gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang());
-        if (stok === 0) {
+        if (stokDasar === 0) {
             if (rekomendasi.length > 0) {
                 toast(`Stok ${barang.nama_barang} habis di ${namaGudangSekarang()}. Tersedia di: ${rekomendasi.join(', ')}`, true);
             } else {
                 toast(`Stok ${barang.nama_barang} habis di semua gudang`, true);
             }
         } else {
-            if (rekomendasi.length > 0) {
-                const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
-                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
-            } else {
-                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}`, true);
-            }
+            toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stokDasar} ${barang.satuan ?? ''}`, true);
         }
         return;
     }
@@ -106,8 +106,8 @@ function tambahKeCart(barangId) {
         state.cart.push({
             barang_id: barang.id,
             nama_barang: barang.nama_barang,
-            satuan: barang.satuan ?? 'pcs',
-            harga: barang.harga_jual,
+            satuan: satuanDefault,
+            harga: hargaUnit,
             jumlah: 1,
             diskon: 0,
         });
@@ -120,23 +120,19 @@ function ubahJumlah(barangId, delta) {
     if (!item) return;
 
     const barang = state.barang.find((b) => b.id === barangId);
-    const stok = barang ? stokBarang(barang) : Infinity;
+    const unitObj = barang?.units?.find((u) => u.satuan === item.satuan);
+    const faktor = unitObj ? unitObj.faktor : 1;
+    const stokDasar = barang ? stokBarang(barang) : Infinity;
 
-    const baru = item.jumlah + delta;
-    if (baru > stok) {
-        const rekomendasi = barang ? gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang()) : [];
-        if (rekomendasi.length > 0) {
-            const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
-            toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
-        } else {
-            toast(`Stok maksimal ${stok}`, true);
-        }
+    const baruJumlah = item.jumlah + delta;
+    if (baruJumlah * faktor > stokDasar) {
+        toast(`Stok maksimal ${stokDasar} ${barang?.satuan ?? ''}`, true);
         return;
     }
-    if (baru <= 0) {
+    if (baruJumlah <= 0) {
         state.cart = state.cart.filter((i) => i.barang_id !== barangId);
     } else {
-        item.jumlah = baru;
+        item.jumlah = baruJumlah;
     }
     render();
 }
@@ -152,21 +148,17 @@ function setJumlah(barangId, jumlah) {
     if (!item) return;
 
     const barang = state.barang.find((b) => b.id === barangId);
-    const stok = barang ? stokBarang(barang) : Infinity;
+    const unitObj = barang?.units?.find((u) => u.satuan === item.satuan);
+    const faktor = unitObj ? unitObj.faktor : 1;
+    const stokDasar = barang ? stokBarang(barang) : Infinity;
 
     let baru = Math.floor(Number(jumlah) || 0);
     if (baru <= 0) {
         state.cart = state.cart.filter((i) => i.barang_id !== barangId);
     } else {
-        if (baru > stok) {
-            const rekomendasi = barang ? gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang()) : [];
-            if (rekomendasi.length > 0) {
-                const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
-                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
-            } else {
-                toast(`Stok maksimal ${stok}`, true);
-            }
-            baru = stok;
+        if (baru * faktor > stokDasar) {
+            toast(`Stok maksimal ${stokDasar} ${barang?.satuan ?? ''}`, true);
+            baru = Math.floor(stokDasar / faktor);
         }
         item.jumlah = baru;
     }
@@ -429,11 +421,20 @@ function renderCart() {
         </div>`;
     } else {
         wrap.innerHTML = state.cart
-            .map(
-                (i) => `<div class="flex items-center gap-3 py-2.5 border-b border-zinc-100 last:border-0">
+            .map((i) => {
+                const b = state.barang.find((x) => x.id === i.barang_id);
+                const units = b?.units ?? [];
+                let unitHtml = `<span class="text-xs text-zinc-400 tabular-nums">${rupiah(i.harga)} / ${i.satuan}</span>`;
+                if (units.length > 1) {
+                    const opts = units
+                        .map((u) => `<option value="${u.satuan}" ${u.satuan === i.satuan ? 'selected' : ''}>${u.satuan} (${rupiah(u.harga_jual)})</option>`)
+                        .join('');
+                    unitHtml = `<select data-unit="${i.barang_id}" class="text-xs bg-zinc-100 border-0 rounded px-1.5 py-0.5 font-bold text-zinc-700 focus:outline-none hover:bg-zinc-200 transition cursor-pointer">${opts}</select>`;
+                }
+                return `<div class="flex items-center gap-3 py-2.5 border-b border-zinc-100 last:border-0">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold truncate">${i.nama_barang}</p>
-                    <p class="text-xs text-zinc-400 tabular-nums mt-0.5">${rupiah(i.harga)} / ${i.satuan}</p>
+                    <div class="mt-0.5">${unitHtml}</div>
                 </div>
                 <div class="flex items-center gap-0.5 bg-zinc-100 rounded-lg p-0.5">
                     <button data-minus="${i.barang_id}" class="w-7 h-7 rounded-md hover:bg-white hover:shadow-sm text-zinc-500 font-bold transition">−</button>
@@ -444,8 +445,8 @@ function renderCart() {
                 </div>
                 <p class="w-24 text-right text-sm font-bold tabular-nums">${rupiah(subtotalItem(i))}</p>
                 <button data-del="${i.barang_id}" class="text-zinc-300 hover:text-red-500 px-1 font-bold transition-colors" title="Hapus">×</button>
-            </div>`
-            )
+            </div>`;
+            })
             .join('');
     }
 
@@ -759,10 +760,12 @@ async function init() {
         if (minus) ubahJumlah(Number(minus.dataset.minus), -1);
         if (del) hapusItem(Number(del.dataset.del));
     });
-    // ketik jumlah manual (change = pas Enter / pindah fokus, biar gak re-render tiap huruf)
+    // ketik jumlah manual / ganti satuan (change = pas Enter / pindah fokus / pilih dropdown)
     document.getElementById('cart-items').addEventListener('change', (e) => {
         const qty = e.target.closest('[data-qty]');
         if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
+        const unitSel = e.target.closest('[data-unit]');
+        if (unitSel) ubahSatuanItem(Number(unitSel.dataset.unit), unitSel.value);
     });
 
     // diskon & bayar

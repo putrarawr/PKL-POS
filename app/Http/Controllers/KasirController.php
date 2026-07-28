@@ -105,8 +105,9 @@ class KasirController extends Controller
                     'jenis_barang_id' => $b->jenis_barang_id,
                     'nama_barang' => $b->nama_barang,
                     'harga_jual' => (int) $b->harga_jual,
-                    'satuan' => $b->satuan ?? 'pcs',
-                    // stok per gudang dari pivot barang_gudang: { gudang_id: jumlah }
+                    'satuan' => $b->satuan ?? 'Pcs',
+                    'units' => $b->getAvailableUnits(),
+                    // stok per gudang dari pivot barang_gudang: { gudang_id: jumlah_dasar }
                     'stok' => $b->gudangs->mapWithKeys(fn ($g) => [$g->id => (int) $g->pivot->stok]),
                 ]),
                 'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
@@ -144,22 +145,27 @@ class KasirController extends Controller
             foreach ($data['details'] as $d) {
                 // lockForUpdate biar aman kalau dua kasir jualan barang sama barengan
                 $barang = Barang::lockForUpdate()->findOrFail($d['barang_id']);
+                $satuan = $d['satuan'] ?? $barang->satuan;
+                $hargaSatuan = $barang->getHargaJualForSatuan($satuan);
+                $faktor = $barang->getFaktorKonversi($satuan);
+                $jumlahDasar = $d['jumlah'] * $faktor;
 
                 $pivot = $barang->gudangs()->where('gudang.id', $gudangId)->first();
-                $stok = $pivot ? (int) $pivot->pivot->stok : 0;
-                if ($stok < $d['jumlah']) {
-                    abort(422, "Stok {$barang->nama_barang} tinggal {$stok}");
+                $stokSekarang = $pivot ? (int) $pivot->pivot->stok : 0;
+                if ($stokSekarang < $jumlahDasar) {
+                    abort(422, "Stok {$barang->nama_barang} di gudang ini tidak cukup (tersedia: {$stokSekarang} {$barang->satuan})");
                 }
 
-                $subtotal = ((int) $barang->harga_jual * $d['jumlah']) - $d['diskon'];
+                $subtotal = ($hargaSatuan * $d['jumlah']) - $d['diskon'];
                 $total += $subtotal;
                 $details[] = [
                     'barang' => $barang,
                     'jumlah' => $d['jumlah'],
-                    'harga' => (int) $barang->harga_jual,
+                    'jumlah_dasar' => $jumlahDasar,
+                    'harga' => $hargaSatuan,
                     'diskon' => $d['diskon'],
                     'subtotal' => $subtotal,
-                    'satuan' => $d['satuan'] ?? 'pcs',
+                    'satuan' => $satuan,
                 ];
             }
 
@@ -203,16 +209,16 @@ class KasirController extends Controller
                     'subtotal' => $d['subtotal'],
                 ]);
 
-                // === STOK & KARTU STOK via StokService (sama kayak pembelian di admin) ===
+                // === STOK & KARTU STOK via StokService (dikurangi dalam Satuan Dasar) ===
                 app(StokService::class)->kurangiStok(
                     barangId: $d['barang']->id,
                     gudangId: $gudangId,
-                    jumlah: $d['jumlah'],
+                    jumlah: $d['jumlah_dasar'],
                     konteks: [
                         'nomer_entry' => $nomerNota,
                         'tanggal' => $data['tanggal'],
                         'harga' => $d['harga'],
-                        'keterangan' => 'Penjualan kasir',
+                        'keterangan' => "Penjualan kasir ({$d['jumlah']} {$d['satuan']})",
                         'jenis' => KartuStok::JENIS_KELUAR,
                     ],
                     validasi: false, // sudah divalidasi di atas

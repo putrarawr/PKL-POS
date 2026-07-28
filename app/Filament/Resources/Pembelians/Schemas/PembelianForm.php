@@ -77,11 +77,44 @@ class PembelianForm
                                 if ($state) {
                                     $barang = Barang::find($state);
                                     if ($barang) {
-                                        $set('harga', $barang->harga_beli);
+                                        $satuanAwal = $barang->satuan ?? 'Pcs';
+                                        $set('satuan', $satuanAwal);
+                                        $set('harga', $barang->getHargaBeliForSatuan($satuanAwal));
                                     }
                                 }
                             })
                             ->columnSpan(4),
+
+                        Select::make('satuan')
+                            ->label('Satuan')
+                            ->options(function (Get $get) {
+                                $barangId = $get('barang_id');
+                                if (!$barangId) {
+                                    return ['Pcs' => 'Pcs'];
+                                }
+                                $barang = Barang::find($barangId);
+                                if (!$barang) {
+                                    return ['Pcs' => 'Pcs'];
+                                }
+                                $opts = [];
+                                foreach ($barang->getAvailableUnits() as $u) {
+                                    $opts[$u['satuan']] = "{$u['satuan']} (L{$u['level']})";
+                                }
+                                return $opts;
+                            })
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                $barangId = $get('barang_id');
+                                if ($barangId && $state) {
+                                    $barang = Barang::find($barangId);
+                                    if ($barang) {
+                                        $set('harga', $barang->getHargaBeliForSatuan($state));
+                                        self::hitungTotal($get, $set);
+                                    }
+                                }
+                            })
+                            ->columnSpan(2),
 
                         TextInput::make('jumlah')
                             ->label('Jumlah')
@@ -106,14 +139,14 @@ class PembelianForm
                             ->afterStateUpdated(function (Get $get, Set $set) {
                                 self::hitungTotal($get, $set);
                             })
-                            ->columnSpan(3),
+                            ->columnSpan(2),
                         TextInput::make('subtotal')
                             ->label('Subtotal')
                             ->numeric()
                             ->default(0)
                             ->prefix('Rp')
                             ->readOnly()
-                            ->columnSpan(3),
+                            ->columnSpan(2),
                     ])
                     ->columns(12)
                     ->addActionLabel('+ Tambah Barang')

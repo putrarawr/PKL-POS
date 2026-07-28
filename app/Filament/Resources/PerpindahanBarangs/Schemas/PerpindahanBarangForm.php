@@ -66,13 +66,42 @@ class PerpindahanBarangForm
                                     ->where('barang_gudang.stok', '>', 0)
                                     ->get()
                                     ->mapWithKeys(function ($item) {
-                                        return [$item->barang_id => $item->nama_barang . ' (stok: ' . $item->stok . ')'];
+                                        return [$item->barang_id => $item->nama_barang . ' (stok: ' . $item->stok . ' ' . ($item->satuan ?? 'Pcs') . ')'];
                                     });
                             })
                             ->required()->searchable()
                             ->distinct()
                             ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+                            ->reactive()
+                            ->afterStateUpdated(function (\Filament\Schemas\Components\Utilities\Set $set, $state) {
+                                if ($state) {
+                                    $barang = Barang::find($state);
+                                    if ($barang) {
+                                        $set('satuan', $barang->satuan ?? 'Pcs');
+                                    }
+                                }
+                            })
                             ->columnSpan(4),
+                        Select::make('satuan')
+                            ->label('Satuan')
+                            ->options(function (Get $get) {
+                                $barangId = $get('barang_id');
+                                if (!$barangId) {
+                                    return ['Pcs' => 'Pcs'];
+                                }
+                                $barang = Barang::find($barangId);
+                                if (!$barang) {
+                                    return ['Pcs' => 'Pcs'];
+                                }
+                                $opts = [];
+                                foreach ($barang->getAvailableUnits() as $u) {
+                                    $opts[$u['satuan']] = "{$u['satuan']} (L{$u['level']})";
+                                }
+                                return $opts;
+                            })
+                            ->required()
+                            ->reactive()
+                            ->columnSpan(2),
                         TextInput::make('jumlah')
                             ->label('Jumlah')
                             ->numeric()->required()->minValue(1)
@@ -84,18 +113,23 @@ class PerpindahanBarangForm
                                     if (! $gudangId || ! $barangId) {
                                         return;
                                     }
+                                    $barang = Barang::find($barangId);
+                                    $satuan = $get('satuan');
+                                    $faktor = $barang ? $barang->getFaktorKonversi($satuan) : 1;
+                                    $jumlahDasar = (int) $value * $faktor;
+
                                     $stok = (int) DB::table('barang_gudang')
                                         ->where('gudang_id', $gudangId)
                                         ->where('barang_id', $barangId)
                                         ->value('stok');
-                                    if ((int) $value > $stok) {
-                                        $fail("Stok tidak cukup (tersedia: {$stok}).");
+                                    if ($jumlahDasar > $stok) {
+                                        $fail("Stok tidak cukup (tersedia: {$stok} " . ($barang->satuan ?? 'Pcs') . ", dibutuhkan: {$jumlahDasar}).");
                                     }
                                 }
                                 : null)
                             ->columnSpan(2),
                     ])
-                    ->columns(6)
+                    ->columns(8)
                     ->addActionLabel('+ Tambah Barang')
                     ->defaultItems(1)
                     ->reorderable(false)
