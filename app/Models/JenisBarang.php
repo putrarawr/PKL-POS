@@ -4,23 +4,29 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class JenisBarang extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
-    protected $table = 'jenis_barang'; //maksa Laravel ngebaca tabel yang bener dan bukan jenis_barangs (plural bahasa Inggris)
-    protected $guarded = ['id']; //biar aman, data id gak bisa diubah
+    protected $table = 'jenis_barang';
 
-    public function barangs()   //pake 's' buat nandain kalau isinya jamak/banyak
+    protected $guarded = ['id'];
+
+    public function getActivitylogOptions(): LogOptions
     {
-        // Ini artinya Satu-ke-Banyak (One-to-Many).
-        // Logikanya: Satu kategori (misal: Minuman) pasti memiliki banyak (hasMany) barang
-        // (misal: Kopi Susu, Teh Tarik, Matcha).
+        return LogOptions::defaults()
+            ->logOnly(['nama_jenis', 'deskripsi'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
+
+    public function barangs()
+    {
         return $this->hasMany(
-            // ngasih tau Laravel buat nyari data di model Barang,
             Barang::class,
-            // dan nyocokin datanya pake kolom kunci jenis_barang_id.
             'jenis_barang_id'
         );
     }
