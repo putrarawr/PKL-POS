@@ -61,6 +61,16 @@ function stokBarang(barang) {
     return barang.stok?.[state.gudangId] ?? 0;
 }
 
+function namaGudangSekarang() {
+    return state.gudang.find((g) => g.id === state.gudangId)?.nama_gudang ?? 'gudang ini';
+}
+
+function gudangStokTersedia(barang) {
+    return state.gudang
+        .filter((g) => (barang.stok?.[g.id] ?? 0) > 0)
+        .map((g) => g.nama_gudang);
+}
+
 // ------------------------- KERANJANG -------------------------
 
 function tambahKeCart(barangId) {
@@ -72,7 +82,21 @@ function tambahKeCart(barangId) {
     const jumlahSekarang = existing ? existing.jumlah : 0;
 
     if (jumlahSekarang + 1 > stok) {
-        toast(`Stok ${barang.nama_barang} di gudang ini tinggal ${stok}`, true);
+        const rekomendasi = gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang());
+        if (stok === 0) {
+            if (rekomendasi.length > 0) {
+                toast(`Stok ${barang.nama_barang} habis di ${namaGudangSekarang()}. Tersedia di: ${rekomendasi.join(', ')}`, true);
+            } else {
+                toast(`Stok ${barang.nama_barang} habis di semua gudang`, true);
+            }
+        } else {
+            if (rekomendasi.length > 0) {
+                const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
+                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
+            } else {
+                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}`, true);
+            }
+        }
         return;
     }
 
@@ -100,7 +124,13 @@ function ubahJumlah(barangId, delta) {
 
     const baru = item.jumlah + delta;
     if (baru > stok) {
-        toast(`Stok maksimal ${stok}`, true);
+        const rekomendasi = barang ? gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang()) : [];
+        if (rekomendasi.length > 0) {
+            const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
+            toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
+        } else {
+            toast(`Stok maksimal ${stok}`, true);
+        }
         return;
     }
     if (baru <= 0) {
@@ -129,7 +159,13 @@ function setJumlah(barangId, jumlah) {
         state.cart = state.cart.filter((i) => i.barang_id !== barangId);
     } else {
         if (baru > stok) {
-            toast(`Stok maksimal ${stok}`, true);
+            const rekomendasi = barang ? gudangStokTersedia(barang).filter((n) => n !== namaGudangSekarang()) : [];
+            if (rekomendasi.length > 0) {
+                const totalStok = Object.values(barang.stok ?? {}).reduce((a, b) => a + b, 0);
+                toast(`Stok ${barang.nama_barang} di ${namaGudangSekarang()} tinggal ${stok}. Tersedia ${totalStok} di: ${rekomendasi.join(', ')}`, true);
+            } else {
+                toast(`Stok maksimal ${stok}`, true);
+            }
             baru = stok;
         }
         item.jumlah = baru;
@@ -302,17 +338,38 @@ function inisial(nama) {
     return ((kata[0]?.[0] ?? '') + (kata[1]?.[0] ?? '')).toUpperCase();
 }
 
-let lastProdukKey = null; // biar stagger cuma jalan pas daftarnya beneran ganti, bukan tiap klik keranjang
+let lastProdukKey = null;
+let highlightedIdx = -1;
+let skipClick = false;
+let gudangSetValue = null;
 
-function renderProduk() {
-    const grid = document.getElementById('grid-produk');
+function barangTampil() {
     const q = state.search.toLowerCase();
-
-    const list = state.barang.filter((b) => {
+    return state.barang.filter((b) => {
         if (state.filterJenis && b.jenis_barang_id !== state.filterJenis) return false;
         if (q && !b.nama_barang.toLowerCase().includes(q)) return false;
         return true;
     });
+}
+
+function getJmlKolom() {
+    const grid = document.getElementById('grid-produk');
+    return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 3;
+}
+
+function focusSorot() {
+    const grid = document.getElementById('grid-produk');
+    const btns = grid.querySelectorAll('[data-add]');
+    if (btns[highlightedIdx]) {
+        btns[highlightedIdx].focus();
+        btns[highlightedIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+function renderProduk() {
+    const grid = document.getElementById('grid-produk');
+    const q = state.search.toLowerCase();
+    const list = barangTampil();
 
     const key = `${state.gudangId}|${state.filterJenis}|${q}`;
     const animate = key !== lastProdukKey;
@@ -331,11 +388,13 @@ function renderProduk() {
             const stok = stokBarang(b);
             const habis = stok <= 0;
             const menipis = !habis && stok <= 5;
-            return `<button data-add="${b.id}" ${habis ? 'disabled' : ''} style="--i: ${Math.min(idx, 16)}"
+            const sorot = highlightedIdx === idx ? 'ring-2 ring-zinc-900 shadow-lg shadow-zinc-900/15' : '';
+            return `<button data-add="${b.id}" style="--i: ${Math.min(idx, 16)}"
                 class="${animate ? 'anim-fade-up ' : ''}group text-left bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col gap-3 transition duration-200
                        ${habis
                            ? 'opacity-40 cursor-not-allowed'
-                           : 'cursor-pointer hover:border-zinc-900 hover:shadow-lg hover:shadow-zinc-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]'}">
+                           : 'cursor-pointer hover:border-zinc-900 hover:shadow-lg hover:shadow-zinc-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]'}
+                       ${sorot}">
                 <div class="flex items-start justify-between gap-2">
                     <div class="w-10 h-10 rounded-xl ${tileTint(b.nama_barang)} flex items-center justify-center text-xs font-black select-none">
                         ${inisial(b.nama_barang)}
@@ -436,12 +495,14 @@ function render() {
 let toastTimer;
 function toast(msg, error = false) {
     const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = `anim-toast fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg z-50
-        ${error ? 'bg-red-600' : 'bg-zinc-900'}`;
+    el.innerHTML = error
+        ? `<svg class="w-5 h-5 shrink-0 inline-block -mt-0.5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${msg}`
+        : msg;
+    el.className = `anim-toast fixed top-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl z-50 max-w-lg w-full text-center
+        ${error ? 'bg-red-600/95 backdrop-blur-sm ring-1 ring-red-400/30' : 'bg-zinc-900/95 backdrop-blur-sm'}`;
     el.classList.remove('hidden');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
 }
 
 // ------------------------- DROPDOWN CUSTOM -------------------------
@@ -518,7 +579,15 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
     });
 
     renderMenu();
-    return { close };
+    return {
+        close,
+        setValue: (val) => {
+            current = val;
+            renderMenu();
+            close();
+            onChange(val);
+        },
+    };
 }
 
 // tutup semua dropdown kalau klik di luar
@@ -541,16 +610,19 @@ async function init() {
     state.gudangId = gudang[0]?.id ?? null;
 
     // dropdown gudang (custom)
-    setupDropdown(
+    gudangSetValue = setupDropdown(
         'dd-gudang',
         gudang.map((g) => ({ value: g.id, label: g.nama_gudang })),
         state.gudangId,
         (val) => {
             state.gudangId = Number(val);
-            state.cart = []; // stok beda per gudang, jadi keranjang direset
+            state.cart = [];
+            highlightedIdx = -1;
             render();
+            const input = document.getElementById('input-search');
+            if (input) input.focus();
         }
-    );
+    ).setValue;
 
     // filter kategori
     const wrapFilter = document.getElementById('filter-jenis');
@@ -566,6 +638,7 @@ async function init() {
         const btn = e.target.closest('[data-jenis]');
         if (!btn) return;
         state.filterJenis = btn.dataset.jenis ? Number(btn.dataset.jenis) : null;
+        highlightedIdx = -1;
         wrapFilter.querySelectorAll('.chip-jenis').forEach((b) => {
             b.className = b === btn ? chipActive : chipIdle;
         });
@@ -577,21 +650,106 @@ async function init() {
     const btnClearSearch = document.getElementById('btn-clear-search');
     inputSearch.addEventListener('input', (e) => {
         state.search = e.target.value;
+        highlightedIdx = -1;
         btnClearSearch.classList.toggle('hidden', state.search === '');
         renderProduk();
     });
+    inputSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const list = barangTampil();
+            if (list.length > 0) {
+                tambahKeCart(list[0].id);
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const list = barangTampil();
+            if (list.length > 0) {
+                highlightedIdx = 0;
+                renderProduk();
+                focusSorot();
+            }
+        }
+    });
     btnClearSearch.addEventListener('click', () => {
         state.search = '';
+        highlightedIdx = -1;
         inputSearch.value = '';
         btnClearSearch.classList.add('hidden');
         inputSearch.focus();
         renderProduk();
     });
 
+    // ketika kasir mulai ngetik di mana saja, fokus otomatis ke search
+    document.addEventListener('keydown', (e) => {
+        if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (document.activeElement?.isContentEditable) return;
+        e.preventDefault();
+        const input = document.getElementById('input-search');
+        const clear = document.getElementById('btn-clear-search');
+        input.value += e.key;
+        state.search = input.value;
+        highlightedIdx = -1;
+        clear.classList.toggle('hidden', false);
+        renderProduk();
+        input.focus();
+        const len = input.value.length;
+        input.setSelectionRange(len, len);
+    });
+
     // klik produk / tombol keranjang (event delegation)
     document.getElementById('grid-produk').addEventListener('click', (e) => {
+        if (skipClick) return;
         const btn = e.target.closest('[data-add]');
-        if (btn) tambahKeCart(Number(btn.dataset.add));
+        if (btn) {
+            highlightedIdx = -1;
+            tambahKeCart(Number(btn.dataset.add));
+        }
+    });
+    document.getElementById('grid-produk').addEventListener('keydown', (e) => {
+        const btn = e.target.closest('[data-add]');
+        if (!btn) return;
+
+        const list = barangTampil();
+        if (list.length === 0) return;
+        const cols = getJmlKolom();
+
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            highlightedIdx = Math.min(highlightedIdx + 1, list.length - 1);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            highlightedIdx = Math.max(highlightedIdx - 1, 0);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            highlightedIdx = Math.min(highlightedIdx + cols, list.length - 1);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            highlightedIdx = Math.max(highlightedIdx - cols, 0);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            skipClick = true;
+            setTimeout(() => { skipClick = false; }, 0);
+            const list = barangTampil();
+            if (highlightedIdx >= 0 && highlightedIdx < list.length) {
+                tambahKeCart(list[highlightedIdx].id);
+            }
+            focusSorot();
+            return;
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            highlightedIdx = -1;
+            renderProduk();
+            inputSearch.focus();
+            return;
+        } else {
+            return;
+        }
+
+        renderProduk();
+        focusSorot();
     });
     document.getElementById('cart-items').addEventListener('click', (e) => {
         const plus = e.target.closest('[data-plus]');
