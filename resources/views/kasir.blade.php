@@ -155,7 +155,7 @@
                         class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
                 </div>
 
-                <div id="cart-items" class="flex-1 overflow-y-auto px-6 py-4 space-y-3"></div>
+                <div id="cart-items" class="flex-1 overflow-y-auto px-6 pt-4 pb-20 space-y-3"></div>
 
                 <div class="shrink-0 border-t border-zinc-200 bg-zinc-50/80 px-6 pt-5 pb-6 space-y-4">
 
