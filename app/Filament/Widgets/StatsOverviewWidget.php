@@ -29,6 +29,7 @@ class StatsOverviewWidget extends BaseWidget
     {
         $plain = 'Rp ' . number_format($amount, 0, ',', '.');
         $formatted = 'Rp&nbsp;' . number_format($amount, 0, ',', '.');
+
         return new HtmlString('<span style="white-space: nowrap !important; font-size: clamp(0.95rem, 1.35vw, 1.25rem) !important; line-height: 1.4 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; font-weight: 800 !important;" title="' . e($plain) . '">' . $formatted . '</span>');
     }
 
@@ -59,24 +60,36 @@ class StatsOverviewWidget extends BaseWidget
             ->where('stok', '<=', 5)
             ->count();
 
+        // Trend 7 hari terakhir untuk sparkline animasi
+        $penjualanTrend = collect();
+        $pembelianTrend = collect();
+        for ($i = 6; $i >= 0; $i--) {
+            $d = Carbon::today()->subDays($i);
+            $penjualanTrend->push((int) Penjualan::whereDate('tanggal', $d)->sum('neto'));
+            $pembelianTrend->push((int) Pembelian::whereDate('tanggal', $d)->sum('neto'));
+        }
+
         return [
             Stat::make('Penjualan Hari Ini', $this->formatRp($totalHariIni))
                 ->description("{$countHariIni} transaksi sukses")
                 ->descriptionIcon(Heroicon::OutlinedShoppingCart)
+                ->chart($penjualanTrend->toArray())
                 ->color('success'),
 
             Stat::make('Penjualan Bulan Ini', $this->formatRp($totalBulanIni))
                 ->description(Carbon::now()->translatedFormat('F Y'))
                 ->descriptionIcon(Heroicon::OutlinedBanknotes)
+                ->chart($penjualanTrend->toArray())
                 ->color('primary'),
 
             Stat::make('Pembelian Bulan Ini', $this->formatRp($totalBeliBulanIni))
                 ->description('Total modal barang masuk')
                 ->descriptionIcon(Heroicon::OutlinedArrowDownTray)
+                ->chart($pembelianTrend->toArray())
                 ->color('warning'),
 
             Stat::make('Stok Menipis (<= 5)', $this->formatItemCount($lowStockCount))
-                ->description($lowStockCount > 0 ? '🔍 Klik untuk lihat rincian' : 'Semua stok aman')
+                ->description($lowStockCount > 0 ? 'Klik untuk lihat rincian' : 'Semua stok aman')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color($lowStockCount > 0 ? 'danger' : 'gray')
                 ->extraAttributes($lowStockCount > 0 ? [
