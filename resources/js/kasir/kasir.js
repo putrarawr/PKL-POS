@@ -542,8 +542,22 @@ function renderCart() {
                 const barang = state.barang.find((b) => b.id === i.barang_id);
                 const units = barang ? getUnitsForBarang(barang) : [{ satuan: i.satuan, harga_jual: i.harga }];
 
-                const unitOptionsHtml = units
-                    .map((u) => `<option value="${u.satuan}" ${u.satuan === i.satuan ? 'selected' : ''}>${u.satuan} (${rupiah(u.harga_jual)})</option>`)
+                const selectedUnitObj = units.find((u) => u.satuan === i.satuan) ?? units[0];
+
+                const customUnitOptionsHtml = units
+                    .map((u) => {
+                        const active = u.satuan === i.satuan;
+                        const checkIcon = `<svg class="w-3.5 h-3.5 shrink-0 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>`;
+                        return `<button type="button" data-custom-unit-select="${i.barang_id}" data-unit-val="${u.satuan}"
+                            class="w-full flex items-center justify-between gap-2 text-left text-xs rounded-lg px-2.5 py-1.5 transition-all cursor-pointer ${
+                                active
+                                    ? 'bg-zinc-900 text-white font-bold shadow-xs'
+                                    : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 font-semibold'
+                            }">
+                            <span class="truncate">${u.satuan} <span class="${active ? 'text-zinc-300 font-normal' : 'text-zinc-400 font-normal'}">(${rupiah(u.harga_jual)})</span></span>
+                            ${active ? checkIcon : ''}
+                        </button>`;
+                    })
                     .join('');
 
                 return `<div class="py-3 border-b border-zinc-100 last:border-0 space-y-2">
@@ -552,10 +566,18 @@ function renderCart() {
                         <button data-del="${i.barang_id}" type="button" class="text-zinc-300 hover:text-red-600 font-bold px-1 transition-colors cursor-pointer text-base leading-none shrink-0" title="Hapus item">×</button>
                     </div>
                     <div class="flex items-center justify-between gap-2">
-                        <div class="min-w-0 flex-1">
-                            <select data-unit="${i.barang_id}" class="w-full max-w-[170px] text-xs font-bold text-zinc-700 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/80 rounded-lg px-2 py-1 focus:outline-none focus:border-zinc-900 transition cursor-pointer truncate">
-                                ${unitOptionsHtml}
-                            </select>
+                        <div class="relative min-w-0 flex-1" data-unit-dropdown-wrapper="${i.barang_id}">
+                            <button type="button" data-unit-dropdown-btn="${i.barang_id}"
+                                class="w-full max-w-[185px] flex items-center justify-between gap-1.5 text-xs font-bold text-zinc-800 bg-zinc-100/90 hover:bg-zinc-200/70 border border-zinc-200/90 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all cursor-pointer">
+                                <span class="truncate">${selectedUnitObj.satuan} <span class="text-zinc-500 font-normal">(${rupiah(selectedUnitObj.harga_jual)})</span></span>
+                                <svg data-unit-dropdown-chevron="${i.barang_id}" class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 6l4 4 4-4"/>
+                                </svg>
+                            </button>
+                            <div data-unit-dropdown-menu="${i.barang_id}"
+                                class="hidden anim-scale-in absolute left-0 top-full mt-1.5 min-w-[185px] w-max max-w-[240px] max-h-52 overflow-y-auto z-40 bg-white border border-zinc-200 rounded-xl shadow-xl shadow-zinc-950/10 p-1 space-y-0.5">
+                                ${customUnitOptionsHtml}
+                            </div>
                         </div>
                         <div class="flex items-center gap-0.5 bg-zinc-100 rounded-lg p-0.5 shrink-0">
                             <button data-minus="${i.barang_id}" type="button" class="w-6 h-6 rounded-md hover:bg-white hover:shadow-xs text-zinc-600 font-bold transition flex items-center justify-center cursor-pointer text-xs">−</button>
@@ -652,11 +674,11 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
     let current = selectedValue;
 
     const itemActive =
-        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-bold rounded-lg px-3 py-2 bg-zinc-100 cursor-pointer';
+        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-bold rounded-lg px-3 py-2 bg-zinc-900 text-white cursor-pointer shadow-xs';
     const itemIdle =
-        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-semibold text-zinc-600 rounded-lg px-3 py-2 hover:bg-zinc-50 hover:text-zinc-900 cursor-pointer transition-colors';
+        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-semibold text-zinc-600 rounded-lg px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 cursor-pointer transition-colors';
     const check =
-        '<svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>';
+        '<svg class="w-3.5 h-3.5 shrink-0 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>';
 
     function renderMenu() {
         if (items.length === 0) {
@@ -708,8 +730,8 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
 }
 
 document.addEventListener('click', () => {
-    document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu]').forEach((m) => m.classList.add('hidden'));
-    document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+    document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu], [data-unit-dropdown-menu]').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron], [data-unit-dropdown-chevron]').forEach((c) => c.classList.remove('rotate-180'));
 });
 
 // ------------------------- INIT -------------------------
@@ -921,16 +943,44 @@ async function init() {
             const plus = e.target.closest('[data-plus]');
             const minus = e.target.closest('[data-minus]');
             const del = e.target.closest('[data-del]');
+            const unitBtn = e.target.closest('[data-unit-dropdown-btn]');
+            const unitSelect = e.target.closest('[data-custom-unit-select]');
+
             if (plus) ubahJumlah(Number(plus.dataset.plus), 1);
             if (minus) ubahJumlah(Number(minus.dataset.minus), -1);
             if (del) hapusItem(Number(del.dataset.del));
+
+            if (unitBtn) {
+                e.stopPropagation();
+                const barangId = unitBtn.dataset.unitDropdownBtn;
+                const menu = document.querySelector(`[data-unit-dropdown-menu="${barangId}"]`);
+                const chevron = document.querySelector(`[data-unit-dropdown-chevron="${barangId}"]`);
+
+                const isHidden = menu?.classList.contains('hidden');
+
+                // Close all unit menus and gudang menu
+                document.querySelectorAll('[data-unit-dropdown-menu]').forEach((m) => m.classList.add('hidden'));
+                document.querySelectorAll('[data-unit-dropdown-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+                document.querySelectorAll('[data-dd-menu]').forEach((m) => m.classList.add('hidden'));
+                document.querySelectorAll('[data-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+
+                if (isHidden && menu) {
+                    menu.classList.remove('hidden');
+                    if (chevron) chevron.classList.add('rotate-180');
+                }
+            }
+
+            if (unitSelect) {
+                e.stopPropagation();
+                const barangId = Number(unitSelect.dataset.customUnitSelect);
+                const satuan = unitSelect.dataset.unitVal;
+                ubahSatuanItem(barangId, satuan);
+            }
         });
 
         cartItems.addEventListener('change', (e) => {
             const qty = e.target.closest('[data-qty]');
-            const unit = e.target.closest('[data-unit]');
             if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
-            if (unit) ubahSatuanItem(Number(unit.dataset.unit), unit.value);
         });
     }
 
