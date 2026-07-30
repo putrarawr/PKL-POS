@@ -23,7 +23,7 @@ A modern, web-based Point of Sale (POS) system designed for retail and distribut
 ## Screenshots
 
 ### 1. Landing Page
-![Landing Page](./screenshots/landing.png)
+![Landing Page](./screenshots/landing1.png)
 
 ### 2. Admin Dashboard (`/admin`)
 ![Admin Dashboard](./screenshots/admin_dashboard.png)
