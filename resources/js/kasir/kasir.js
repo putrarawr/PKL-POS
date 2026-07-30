@@ -449,7 +449,11 @@ function barangTampil() {
     const q = state.search.toLowerCase();
     return state.barang.filter((b) => {
         if (state.filterJenis && b.jenis_barang_id !== state.filterJenis) return false;
-        if (q && !b.nama_barang.toLowerCase().includes(q)) return false;
+        if (q) {
+            const namaMatch = b.nama_barang.toLowerCase().includes(q);
+            const kodeMatch = inisial(b.nama_barang).toLowerCase() === q;
+            if (!namaMatch && !kodeMatch) return false;
+        }
         return true;
     });
 }

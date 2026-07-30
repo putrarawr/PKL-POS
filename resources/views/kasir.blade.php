@@ -129,7 +129,7 @@
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>
                         </svg>
-                        <input id="input-search" type="text" placeholder="Cari nama barang"
+                        <input id="input-search" type="text" placeholder="Cari nama atau kode barang (cth: WT)"
                             class="w-full h-12 border border-zinc-200 rounded-xl pl-11 pr-10 text-sm font-medium bg-white placeholder:text-zinc-400 placeholder:font-normal shadow-xs shadow-zinc-100 focus:outline-none focus:border-zinc-900 transition-colors">
                         <button id="btn-clear-search" class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 text-zinc-400 hover:text-zinc-900 hidden flex items-center justify-center transition-colors">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
