@@ -2,7 +2,7 @@
 
 A modern, web-based Point of Sale (POS) system designed for retail and distribution management. Built using **Laravel 13**, **Filament**, and **PostgreSQL**.
 
-![Landing Page](./screenshots/landing.png)
+![Landing Page](./screenshots/landing1.png)
 
 ---
 
