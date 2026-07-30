@@ -2,10 +2,13 @@
 
 A modern, web-based Point of Sale (POS) system designed for retail and distribution management. Built using **Laravel 13**, **Filament**, and **PostgreSQL**.
 
+![Landing Page](./screenshots/landing1.png)
+
 ---
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
 - [System Architecture & Directory Structure](#system-architecture--directory-structure)
@@ -17,9 +20,29 @@ A modern, web-based Point of Sale (POS) system designed for retail and distribut
 
 ---
 
+## Screenshots
+
+### 1. Landing Page
+![Landing Page](./screenshots/landing1.png)
+
+### 2. Admin Dashboard (`/admin`)
+![Admin Dashboard](./screenshots/admin_dashboard.png)
+
+### 3. Cashier POS Interface (`/kasir`)
+![Cashier POS Interface](./screenshots/kasir_pos.png)
+
+### 4. Authentication & Login
+| Admin System Login | Cashier Terminal Login |
+|:---:|:---:|
+| ![Admin Login](./screenshots/login_admin.png) | ![Cashier Login](./screenshots/login_kasir.png) |
+
+---
+
 ## Key Features
 
 ### Cashier Interface (`/kasir`)
+![Cashier Interface](./screenshots/kasir_pos.png)
+
 - **Fully Responsive Layout**: Works seamlessly on desktop, tablet, and mobile screens with a dedicated slide-over drawer for mobile shopping cart navigation.
 - **Real-Time Product Search & Filtering**: Instant search by item name and category filtering.
 - **Strict Input Validation**:
@@ -31,6 +54,8 @@ A modern, web-based Point of Sale (POS) system designed for retail and distribut
 - **Receipt Generation**: Virtual receipt preview with thermal print capabilities.
 
 ### Admin Dashboard (`/admin`)
+![Admin Dashboard](./screenshots/admin_dashboard.png)
+
 - **Overview Statistics Cards**:
   - Today's Sales
   - This Month's Sales
