@@ -68,7 +68,7 @@ class KartuStoksTable
                     ->badge()
                     ->color('info'),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('created_at', 'asc')
             ->recordAction('view_detail')
             ->recordActions([
                 Action::make('view_detail')
