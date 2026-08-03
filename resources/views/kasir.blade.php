@@ -13,6 +13,22 @@
     @vite(['resources/css/app.css', 'resources/js/kasir/kasir.js'])
     <style>
         body { font-family: 'Satoshi', ui-sans-serif, system-ui, sans-serif; }
+        .kbd-shortcut {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.75rem;
+            padding: 0.15rem 0.5rem;
+            background: #f4f4f5;
+            border: 1px solid #e4e4e7;
+            border-bottom-width: 2px;
+            border-radius: 0.4rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #3f3f46;
+            font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
+            line-height: 1.25;
+        }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 99px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -104,6 +120,15 @@
                     </div>
                 </div>
 
+                {{-- Tombol Panduan Shortcut --}}
+                <button id="btn-panduan-shortcut" type="button" title="Panduan shortcut (?)"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                    <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2"/>
+                        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>
+                    </svg>
+                </button>
+
                 {{-- Tombol Logout --}}
                 <form method="POST" action="{{ route('kasir.logout') }}">
                     @csrf
@@ -154,6 +179,12 @@
                     <button id="btn-reset"
                         class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
                 </div>
+
+                <p id="hint-cart-selected" class="hidden shrink-0 bg-zinc-900 text-white text-[11px] font-semibold px-6 py-2 flex items-center gap-1.5">
+                    <span class="tabular-nums font-bold" id="hint-cart-pos"></span>
+                    <span class="text-zinc-300 font-normal">·</span>
+                    <span>↑↓ pindah · +/− qty · R satuan · Del hapus · Esc batal</span>
+                </p>
 
                 <div id="cart-items" class="flex-1 overflow-y-auto px-6 pt-4 pb-20 space-y-3"></div>
 
@@ -297,6 +328,93 @@
                     class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
                 <button id="btn-konfirmasi-gudang" type="button"
                     class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Pindah Gudang</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL PANDUAN SHORTCUT --}}
+    <div id="modal-panduan-shortcut" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+                <h3 class="text-sm font-bold tracking-tight">Shortcut</h3>
+                <button id="btn-tutup-panduan-shortcut" type="button"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="px-6 py-5 divide-y divide-zinc-100 max-h-[60dvh] overflow-y-auto">
+                <div class="flex items-center justify-between gap-4 py-2.5 first:pt-0">
+                    <span class="text-sm text-zinc-600">Buka panduan ini</span>
+                    <kbd class="kbd-shortcut">?</kbd>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Cari barang</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">K</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Navigasi daftar barang</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">←</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">→</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">↑</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">↓</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Kurangi jumlah barang</span>
+                    <kbd class="kbd-shortcut">-</kbd>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Tambah jumlah barang</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">+</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">Enter</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Pilih barang keranjang terakhir</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">↓</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Pilih barang keranjang pertama</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">↑</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Pindah antar barang</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">↑</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">↓</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Hapus barang terpilih</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Del</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">Backspace</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Ganti satuan (barang terpilih)</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">R</kbd><span class="text-xs text-zinc-300 font-semibold">lalu</span><kbd class="kbd-shortcut">↑↓</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">Enter</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Bayar</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">Enter</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Uang pas</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">U</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Rincian pembayaran</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">P</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Metode: Tunai / QRIS / Transfer</span>
+                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">1</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">2</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">3</kbd></span>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Kosongkan pesanan</span>
+                    <kbd class="kbd-shortcut">F9</kbd>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Tutup modal</span>
+                    <kbd class="kbd-shortcut">Esc</kbd>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-zinc-100">
+                <button id="btn-selesai-panduan-shortcut" type="button"
+                    class="w-full bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white text-sm font-bold rounded-xl py-3 transition cursor-pointer">Tutup</button>
             </div>
         </div>
     </div>
