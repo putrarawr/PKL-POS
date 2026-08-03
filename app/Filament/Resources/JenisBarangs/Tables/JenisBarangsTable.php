@@ -4,9 +4,11 @@ namespace App\Filament\Resources\JenisBarangs\Tables;
 
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
+use Illuminate\Contracts\View\View;
 
 class JenisBarangsTable
 {
@@ -33,7 +35,18 @@ class JenisBarangsTable
             ->filters([
                 //
             ])
+            ->recordUrl(null)
+            ->recordAction('lihat_barang')
             ->recordActions([
+                Action::make('lihat_barang')
+                    ->extraAttributes(['class' => 'hidden', 'style' => 'display:none'])
+                    ->modalHeading(fn (\App\Models\JenisBarang $record) => "Daftar Barang - {$record->nama_jenis}")
+                    ->modalContent(fn (\App\Models\JenisBarang $record): View => view(
+                        'filament.resources.jenis-barang.detail-barang-modal',
+                        ['record' => $record->load('barangs')]
+                    ))
+                    ->modalSubmitAction(false)
+                    ->modalCancelAction(false),
                 EditAction::make(),
             ])
             ->toolbarActions([
