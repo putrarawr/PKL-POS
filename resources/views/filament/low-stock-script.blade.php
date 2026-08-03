@@ -7,15 +7,19 @@
         return;
     }
 
-    // Query barang stok menipis
+    // Query barang stok menipis (hanya muat gudang yang stoknya <= 5)
     $lowStockItems = Barang::query()
-        ->with('gudangs', 'jenisBarang')
+        ->with(['gudangs' => function ($q) {
+            $q->where('barang_gudang.stok', '<=', 5);
+        }, 'jenisBarang'])
         ->whereHas('gudangs', function (Builder $q) {
             $q->where('barang_gudang.stok', '<=', 5);
         })
         ->get();
 
     $jsonData = [];
+    $totalGudangBadges = 0;
+
     foreach ($lowStockItems as $b) {
         $gudangs = [];
         foreach ($b->gudangs as $g) {
@@ -25,6 +29,7 @@
                 'stok' => $stokVal,
                 'stok_formatted' => $b->formatStokBerantai($stokVal),
             ];
+            $totalGudangBadges++;
         }
         $jsonData[] = [
             'nama' => $b->nama_barang,
@@ -48,15 +53,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var lowStockData = {!! json_encode($jsonData) !!};
+    var totalGudangBadges = {{ $totalGudangBadges }};
 
     function buildLowStockHtml(items) {
         var rows = '';
         items.forEach(function (item) {
             var gudangBadges = '';
             item.gudangs.forEach(function (g) {
-                var cls = g.stok <= 5
-                    ? 'background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d'
-                    : 'background:#18181b;color:#a1a1aa;border:1px solid #27272a';
+                var cls = 'background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d';
                 gudangBadges += '<span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600;margin:1.5px 2px 1.5px 0;' + cls + '">'
                     + g.nama + ': ' + g.stok_formatted + '</span>';
             });
@@ -73,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
             + '<thead><tr style="background:#18181b;border-bottom:1.5px solid #3f3f46;position:sticky;top:0;z-index:1">'
             + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;background:#18181b">Barang</th>'
             + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;white-space:nowrap;background:#18181b">Kategori</th>'
-            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;background:#18181b">Gudang &amp; Sisa Stok</th>'
+            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;background:#18181b">Gudang Bermasalah &amp; Sisa Stok</th>'
             + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;text-align:right;background:#18181b">Harga Jual</th>'
             + '</tr></thead>'
             + '<tbody>' + rows + '</tbody>'
@@ -81,10 +85,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.__showLowStockAlert = function () {
+        var subText = totalGudangBadges > lowStockData.length
+            ? 'Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> (tersebar di <strong style="color:#f87171">' + totalGudangBadges + ' lokasi gudang</strong>) yang perlu segera di-restok.'
+            : 'Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> perlu segera di-restok.';
+
         Swal.fire({
             icon: 'warning',
             title: '<span style="color:#fafafa;font-size:18px;font-weight:700">Stok Menipis!</span>',
-            html: '<p style="color:#a1a1aa;font-size:13px;margin-bottom:2px">Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> perlu segera di-restok.</p>'
+            html: '<p style="color:#a1a1aa;font-size:13px;margin-bottom:2px">' + subText + '</p>'
                 + buildLowStockHtml(lowStockData),
             width: '600px',
             padding: '1.25rem',
