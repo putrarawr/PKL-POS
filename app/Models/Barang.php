@@ -176,4 +176,36 @@ class Barang extends Model
 
         return $units;
     }
+
+    /**
+     * Format jumlah stok dasar (misal Pcs) menjadi rincian satuan berantai.
+     * Contoh: 1255 pcs -> "1 Bal, 2 Slof, 5 Pack, 5 Pcs"
+     */
+    public function formatStokBerantai(int $stok): string
+    {
+        $baseSatuan = $this->satuan ?? 'Pcs';
+        if ($stok <= 0) {
+            return "0 {$baseSatuan}";
+        }
+
+        $units = $this->getAvailableUnits();
+        usort($units, fn ($a, $b) => $b['faktor'] <=> $a['faktor']);
+
+        $sisa = $stok;
+        $parts = [];
+
+        foreach ($units as $u) {
+            $faktor = $u['faktor'];
+            if ($faktor > 1 && $sisa >= $faktor) {
+                $qty = (int) floor($sisa / $faktor);
+                $sisa %= $faktor;
+                $parts[] = "{$qty} {$u['satuan']}";
+            } elseif ($faktor === 1 && ($sisa > 0 || empty($parts))) {
+                $parts[] = "{$sisa} {$u['satuan']}";
+                $sisa = 0;
+            }
+        }
+
+        return empty($parts) ? "0 {$baseSatuan}" : implode(', ', $parts);
+    }
 }

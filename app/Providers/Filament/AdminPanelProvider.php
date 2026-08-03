@@ -40,12 +40,12 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
             ])
-            ->navigationItems([
-                \Filament\Navigation\NavigationItem::make('Terminal Kasir')
-                    ->url('/kasir', shouldOpenInNewTab: true)
-                    ->icon(\Filament\Support\Icons\Heroicon::OutlinedComputerDesktop)
-                    ->sort(100),
-            ])
+            // ->navigationItems([
+            //     \Filament\Navigation\NavigationItem::make('Terminal Kasir')
+            //         ->url('/kasir', shouldOpenInNewTab: true)
+            //         ->icon(\Filament\Support\Icons\Heroicon::OutlinedComputerDesktop)
+            //         ->sort(100),
+            // ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,

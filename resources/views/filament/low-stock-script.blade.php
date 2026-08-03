@@ -19,9 +19,11 @@
     foreach ($lowStockItems as $b) {
         $gudangs = [];
         foreach ($b->gudangs as $g) {
+            $stokVal = (int) $g->pivot->stok;
             $gudangs[] = [
                 'nama' => $g->nama_gudang,
-                'stok' => (int) $g->pivot->stok,
+                'stok' => $stokVal,
+                'stok_formatted' => $b->formatStokBerantai($stokVal),
             ];
         }
         $jsonData[] = [
@@ -53,26 +55,26 @@ document.addEventListener('DOMContentLoaded', function () {
             var gudangBadges = '';
             item.gudangs.forEach(function (g) {
                 var cls = g.stok <= 5
-                    ? 'background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b'
-                    : 'background:#27272a;color:#a1a1aa;border:1px solid #3f3f46';
-                gudangBadges += '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;margin:2px;' + cls + '">'
-                    + g.nama + ': ' + g.stok + ' pcs</span>';
+                    ? 'background:#450a0a;color:#fca5a5;border:1px solid #7f1d1d'
+                    : 'background:#18181b;color:#a1a1aa;border:1px solid #27272a';
+                gudangBadges += '<span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:600;margin:1.5px 2px 1.5px 0;' + cls + '">'
+                    + g.nama + ': ' + g.stok_formatted + '</span>';
             });
             rows += '<tr style="border-bottom:1px solid #27272a">'
-                + '<td style="padding:10px 8px;font-weight:600;color:#fafafa;text-align:left">' + item.nama + '</td>'
-                + '<td style="padding:10px 8px;text-align:left;white-space:nowrap"><span style="display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:500;background:#27272a;color:#a1a1aa;white-space:nowrap">' + item.jenis + '</span></td>'
-                + '<td style="padding:10px 8px;text-align:left">' + gudangBadges + '</td>'
-                + '<td style="padding:10px 8px;font-weight:700;color:#fafafa;text-align:right;white-space:nowrap">' + item.harga + '</td>'
+                + '<td style="padding:7px 8px;font-weight:600;color:#fafafa;text-align:left;font-size:12px">' + item.nama + '</td>'
+                + '<td style="padding:7px 8px;text-align:left;white-space:nowrap"><span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:500;background:#27272a;color:#a1a1aa;white-space:nowrap">' + item.jenis + '</span></td>'
+                + '<td style="padding:7px 8px;text-align:left">' + gudangBadges + '</td>'
+                + '<td style="padding:7px 8px;font-weight:700;color:#fafafa;text-align:right;white-space:nowrap;font-size:12px">' + item.harga + '</td>'
                 + '</tr>';
         });
 
-        return '<div style="max-height:50vh;overflow-y:auto;margin-top:12px;border-radius:12px;border:1px solid #27272a">'
-            + '<table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left">'
-            + '<thead><tr style="background:#18181b;border-bottom:2px solid #3f3f46;position:sticky;top:0;z-index:1">'
-            + '<th style="padding:10px 8px;font-weight:700;color:#71717a;text-transform:uppercase;font-size:10px;letter-spacing:0.08em;background:#18181b">Barang</th>'
-            + '<th style="padding:10px 8px;font-weight:700;color:#71717a;text-transform:uppercase;font-size:10px;letter-spacing:0.08em;white-space:nowrap;background:#18181b">Kategori</th>'
-            + '<th style="padding:10px 8px;font-weight:700;color:#71717a;text-transform:uppercase;font-size:10px;letter-spacing:0.08em;background:#18181b">Gudang &amp; Sisa Stok</th>'
-            + '<th style="padding:10px 8px;font-weight:700;color:#71717a;text-transform:uppercase;font-size:10px;letter-spacing:0.08em;text-align:right;background:#18181b">Harga Jual</th>'
+        return '<div style="max-height:42vh;overflow-y:auto;margin-top:10px;border-radius:10px;border:1px solid #27272a">'
+            + '<table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">'
+            + '<thead><tr style="background:#18181b;border-bottom:1.5px solid #3f3f46;position:sticky;top:0;z-index:1">'
+            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;background:#18181b">Barang</th>'
+            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;white-space:nowrap;background:#18181b">Kategori</th>'
+            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;background:#18181b">Gudang &amp; Sisa Stok</th>'
+            + '<th style="padding:8px;font-weight:700;color:#a1a1aa;text-transform:uppercase;font-size:10px;letter-spacing:0.05em;text-align:right;background:#18181b">Harga Jual</th>'
             + '</tr></thead>'
             + '<tbody>' + rows + '</tbody>'
             + '</table></div>';
@@ -81,17 +83,18 @@ document.addEventListener('DOMContentLoaded', function () {
     window.__showLowStockAlert = function () {
         Swal.fire({
             icon: 'warning',
-            title: '<span style="color:#fafafa">Stok Menipis!</span>',
-            html: '<p style="color:#a1a1aa;font-size:14px;margin-bottom:4px">Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> dengan stok &le; 5 pcs yang perlu segera di-restok.</p>'
+            title: '<span style="color:#fafafa;font-size:18px;font-weight:700">Stok Menipis!</span>',
+            html: '<p style="color:#a1a1aa;font-size:13px;margin-bottom:2px">Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> perlu segera di-restok.</p>'
                 + buildLowStockHtml(lowStockData),
-            width: '720px',
+            width: '600px',
+            padding: '1.25rem',
             showCloseButton: true,
             confirmButtonText: 'Mengerti',
             confirmButtonColor: '#ea580c',
             background: '#09090b',
             color: '#fafafa',
             customClass: {
-                popup: 'swal-low-stock',
+                popup: 'swal-low-stock-compact',
                 closeButton: 'swal-close-dark',
             },
         });

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Barang;
 use App\Models\Pembelian;
 use App\Models\Penjualan;
 use Filament\Support\Icons\Heroicon;
@@ -55,10 +56,10 @@ class StatsOverviewWidget extends BaseWidget
         // Pembelian Bulan Ini
         $totalBeliBulanIni = Pembelian::whereBetween('tanggal', [$startOfMonth, $endOfMonth])->sum('neto');
 
-        // Total Jenis Barang dengan Stok <= 5 (Low Stock)
-        $lowStockCount = DB::table('barang_gudang')
-            ->where('stok', '<=', 5)
-            ->count();
+        // Total Barang Unik dengan Stok <= 5 (Low Stock)
+        $lowStockCount = Barang::whereHas('gudangs', function ($q) {
+            $q->where('barang_gudang.stok', '<=', 5);
+        })->count();
 
         // Trend 7 hari terakhir untuk sparkline animasi
         $penjualanTrend = collect();
