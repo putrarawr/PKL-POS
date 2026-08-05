@@ -18,9 +18,38 @@ class Barang extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['jenis_barang_id', 'nama_barang', 'harga_jual', 'satuan'])
+            ->logOnly(['jenis_barang_id', 'nomer_seri', 'barcode', 'nama_barang', 'harga_jual', 'satuan'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Barang $barang) {
+            if (empty($barang->nomer_seri) && !empty($barang->jenis_barang_id)) {
+                $jenis = JenisBarang::find($barang->jenis_barang_id);
+                if ($jenis) {
+                    $barang->nomer_seri = $jenis->generateNextNomerSeri();
+                }
+            }
+
+            if (empty($barang->barcode)) {
+                $barang->barcode = $barang->nomer_seri;
+            }
+        });
+
+        static::updating(function (Barang $barang) {
+            if (empty($barang->nomer_seri) && !empty($barang->jenis_barang_id)) {
+                $jenis = JenisBarang::find($barang->jenis_barang_id);
+                if ($jenis) {
+                    $barang->nomer_seri = $jenis->generateNextNomerSeri();
+                }
+            }
+
+            if (empty($barang->barcode)) {
+                $barang->barcode = $barang->nomer_seri;
+            }
+        });
     }
 
     public function jenisBarang()
@@ -189,7 +218,7 @@ class Barang extends Model
         }
 
         $units = $this->getAvailableUnits();
-        usort($units, fn ($a, $b) => $b['faktor'] <=> $a['faktor']);
+        usort($units, fn($a, $b) => $b['faktor'] <=> $a['faktor']);
 
         $sisa = $stok;
         $parts = [];

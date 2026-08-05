@@ -20,10 +20,22 @@ class BarangsTable
                     ->label('Jenis Barang')
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('nomer_seri')
+                    ->label('Nomor Seri')
+                    ->searchable()
+                    ->sortable()
+                    ->copyable()
+                    ->badge()
+                    ->color('gray'),
                 TextColumn::make('nama_barang')
                     ->label('Nama Barang')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('barcode')
+                    ->label('Barcode')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('harga_beli')
                     ->label('Harga Beli')
                     ->money('IDR')
@@ -34,10 +46,10 @@ class BarangsTable
                     ->sortable(),
                 TextColumn::make('total_stok')
                     ->label('Total Stok')
-                    ->state(fn ($record): int => (int) $record->gudangs()->sum('stok'))
-                    ->formatStateUsing(fn (int $state, $record): string => number_format($state, 0, ',', '.') . ' ' . ($record->satuan ?? 'Pcs'))
+                    ->state(fn($record): int => (int) $record->gudangs()->sum('stok'))
+                    ->formatStateUsing(fn(int $state, $record): string => number_format($state, 0, ',', '.') . ' ' . ($record->satuan ?? 'Pcs'))
                     ->badge()
-                    ->color(fn (int $state): string => match (true) {
+                    ->color(fn(int $state): string => match (true) {
                         $state <= 0 => 'danger',
                         $state < 10 => 'warning',
                         default => 'success',

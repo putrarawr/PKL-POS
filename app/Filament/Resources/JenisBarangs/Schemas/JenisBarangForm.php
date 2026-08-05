@@ -15,7 +15,20 @@ class JenisBarangForm
                 TextInput::make('nama_jenis')
                     ->label('Nama Jenis')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function ($state, \Filament\Forms\Set $set, \Filament\Forms\Get $get) {
+                        if (blank($get('kode_jenis'))) {
+                            $clean = strtoupper(preg_replace('/[^a-zA-Z]/', '', $state ?? ''));
+                            $set('kode_jenis', substr($clean, 0, 3));
+                        }
+                    }),
+                TextInput::make('kode_jenis')
+                    ->label('Kode Prefix (Contoh: ROK / RKK)')
+                    ->placeholder('Otomatis dari 3 huruf pertama nama jenis')
+                    ->helperText('Digunakan untuk awalan Nomor Seri barang (misal: ROK-0001)')
+                    ->maxLength(10)
+                    ->dehydrateStateUsing(fn ($state) => filled($state) ? strtoupper(trim($state)) : null),
                 Textarea::make('deskripsi')
                     ->label('Deskripsi')
                     ->required()

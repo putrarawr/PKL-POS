@@ -31,6 +31,17 @@ class BarangForm
                                 ->label('Nama Barang')
                                 ->required()
                                 ->maxLength(255),
+                            TextInput::make('nomer_seri')
+                                ->label('Nomor Seri')
+                                ->placeholder('Otomatis digenerate saat simpan (misal: ROK-0001)')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->visible(fn ($record) => filled($record?->nomer_seri)),
+                            TextInput::make('barcode')
+                                ->label('Barcode Produk (Opsional)')
+                                ->placeholder('Kosongkan untuk otomatis menggunakan Nomor Seri')
+                                ->helperText('Jika barang tidak punya barcode pabrik, otomatis disamakan dengan Nomor Seri.')
+                                ->maxLength(255),
                             TextInput::make('satuan')
                                 ->label('Satuan Terkecil / Dasar (Level 1)')
                                 ->placeholder('Misal: Pcs, Batang, Botol, Saset')
