@@ -45,9 +45,8 @@ class JenisBarang extends Model
     {
         $prefix = $this->getEffectiveKodePrefix();
 
-        $lastBarang = Barang::where('jenis_barang_id', $this->id)
-            ->where('nomer_seri', 'LIKE', "{$prefix}-%")
-            ->orderBy('id', 'desc')
+        $lastBarang = Barang::where('nomer_seri', 'LIKE', "{$prefix}-%")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(nomer_seri, '-', -1) AS UNSIGNED) DESC")
             ->first();
 
         $nextNumber = 1;

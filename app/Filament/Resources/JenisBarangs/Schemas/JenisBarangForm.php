@@ -28,7 +28,7 @@ class JenisBarangForm
                     ->placeholder('Otomatis dari 3 huruf pertama nama jenis')
                     ->helperText('Digunakan untuk awalan Nomor Seri barang (misal: ROK-0001)')
                     ->maxLength(10)
-                    ->dehydrateStateUsing(fn ($state) => filled($state) ? strtoupper(trim($state)) : null),
+                    ->dehydrateStateUsing(fn($state) => filled($state) ? strtoupper(trim($state)) : null),
                 Textarea::make('deskripsi')
                     ->label('Deskripsi')
                     ->required()
