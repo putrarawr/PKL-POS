@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Penjualan;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 
@@ -62,29 +63,31 @@ class MetodePembayaranChartWidget extends ChartWidget
         ];
     }
 
-    protected function getOptions(): array
+    protected function getOptions(): RawJs|array
     {
-        return [
-            'animation' => [
-                'animateRotate' => true,
-                'animateScale' => true,
-                'duration' => 2000,
-                'easing' => 'easeOutQuart',
-            ],
-            'plugins' => [
-                'legend' => [
-                    'display' => true,
-                    'position' => 'bottom',
-                ],
-                'tooltip' => [
-                    'enabled' => true,
-                    'callbacks' => [
-                        'label' => "function(context) { return context.label + ': Rp ' + Number(context.raw).toLocaleString('id-ID'); }",
-                    ],
-                ],
-            ],
-            'cutout' => '65%',
-        ];
+        return RawJs::make(<<<JS
+            {
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) { return context.label + ': Rp ' + Number(context.raw).toLocaleString('id-ID'); }
+                        }
+                    }
+                },
+                cutout: '65%'
+            }
+        JS);
     }
 
     protected function getType(): string

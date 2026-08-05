@@ -51,7 +51,7 @@
 
 @if(count($jsonData) > 0)
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
     var lowStockData = {!! json_encode($jsonData) !!};
     var totalGudangBadges = {{ $totalGudangBadges }};
 
@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.__showLowStockAlert = function () {
+        if (typeof Swal === 'undefined') return;
         var subText = totalGudangBadges > lowStockData.length
             ? 'Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> (tersebar di <strong style="color:#f87171">' + totalGudangBadges + ' lokasi gudang</strong>) yang perlu segera di-restok.'
             : 'Ada <strong style="color:#f87171">' + lowStockData.length + ' barang</strong> perlu segera di-restok.';
@@ -109,8 +110,12 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     @if($shouldAutoShow)
-        window.__showLowStockAlert();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { window.__showLowStockAlert(); });
+        } else {
+            setTimeout(function () { window.__showLowStockAlert(); }, 100);
+        }
     @endif
-});
+})();
 </script>
 @endif

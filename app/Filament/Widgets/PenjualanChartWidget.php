@@ -3,12 +3,13 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Penjualan;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
 
 class PenjualanChartWidget extends ChartWidget
 {
-    protected ?string $heading = 'Grafik Omset Penjualan';
+    protected ?string $heading = 'Grafik OMSET Penjualan';
 
     protected static ?int $sort = 2;
 
@@ -78,39 +79,41 @@ class PenjualanChartWidget extends ChartWidget
         ];
     }
 
-    protected function getOptions(): array
+    protected function getOptions(): RawJs|array
     {
-        return [
-            'animation' => [
-                'duration' => 2000,
-                'easing' => 'easeInOutQuart',
-            ],
-            'animations' => [
-                'y' => [
-                    'duration' => 2000,
-                    'from' => 0,
-                ],
-            ],
-            'plugins' => [
-                'legend' => [
-                    'display' => true,
-                    'position' => 'top',
-                ],
-                'tooltip' => [
-                    'enabled' => true,
-                    'mode' => 'index',
-                    'intersect' => false,
-                ],
-            ],
-            'scales' => [
-                'y' => [
-                    'beginAtZero' => true,
-                    'ticks' => [
-                        'callback' => "function(value) { return 'Rp ' + Number(value).toLocaleString('id-ID'); }",
-                    ],
-                ],
-            ],
-        ];
+        return RawJs::make(<<<JS
+            {
+                animation: {
+                    duration: 2000,
+                    easing: 'easeInOutQuart'
+                },
+                animations: {
+                    y: {
+                        duration: 2000,
+                        from: 0
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return 'Rp ' + Number(value).toLocaleString('id-ID'); }
+                        }
+                    }
+                }
+            }
+        JS);
     }
 
     protected function getType(): string

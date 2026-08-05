@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\DetailJual;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 
@@ -75,39 +76,41 @@ class TopBarangTerlarisChartWidget extends ChartWidget
         ];
     }
 
-    protected function getOptions(): array
+    protected function getOptions(): RawJs|array
     {
-        return [
-            'animation' => [
-                'duration' => 2000,
-                'easing' => 'easeOutQuart',
-            ],
-            'animations' => [
-                'y' => [
-                    'duration' => 2000,
-                    'from' => 0,
-                ],
-            ],
-            'plugins' => [
-                'legend' => [
-                    'display' => false,
-                ],
-                'tooltip' => [
-                    'enabled' => true,
-                    'callbacks' => [
-                        'label' => "function(context) { return 'Terjual: ' + context.raw + ' item'; }",
-                    ],
-                ],
-            ],
-            'scales' => [
-                'y' => [
-                    'beginAtZero' => true,
-                    'ticks' => [
-                        'precision' => 0,
-                    ],
-                ],
-            ],
-        ];
+        return RawJs::make(<<<JS
+            {
+                animation: {
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                },
+                animations: {
+                    y: {
+                        duration: 2000,
+                        from: 0
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) { return 'Terjual: ' + context.raw + ' item'; }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        JS);
     }
 
     protected function getType(): string
