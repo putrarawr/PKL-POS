@@ -15,6 +15,7 @@ Route::post('/kasir/logout', [KasirController::class, 'logout'])->name('kasir.lo
 // --- Kasir (harus login: Karyawan atau Admin/User) ---
 Route::middleware('auth:karyawan,web')->group(function () {
     Route::get('/kasir', [KasirController::class, 'index'])->name('kasir');
+    Route::get('/kasir/data', [KasirController::class, 'data'])->name('kasir.data');
     Route::post('/kasir/simpan', [KasirController::class, 'simpan'])->name('kasir.simpan');
 });
 

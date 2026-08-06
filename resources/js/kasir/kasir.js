@@ -523,6 +523,11 @@ function renderProduk() {
             const defaultUnit = units[0]?.satuan ?? b.satuan ?? 'Pcs';
             const jumlahDiKeranjang = state.cart.find((i) => i.barang_id === b.id)?.jumlah ?? 0;
 
+            const hasTier = (b.min_qty_2 && Number(b.nilai_tier_2) > 0) || (b.min_qty_3 && Number(b.nilai_tier_3) > 0) || (b.min_qty_1 && Number(b.nilai_tier_1) > 0);
+            const tierBadgeProdukHtml = hasTier
+                ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-md mt-1">🏷️ Promo Qty</span>`
+                : '';
+
             return `<button data-add="${b.id}" style="--i: ${Math.min(idx, 16)}"
                 class="${animate ? 'anim-fade-up ' : ''}relative group text-left bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col gap-3 transition duration-200
                        ${habis
@@ -548,6 +553,52 @@ function renderProduk() {
         .join('');
 }
 
+function updateCartTierPrices() {
+    state.cart.forEach((i) => {
+        const barang = state.barang.find((b) => Number(b.id) === Number(i.barang_id));
+        if (!barang) return;
+
+        const units = getUnitsForBarang(barang);
+        const unitObj = units.find((u) => u.satuan === i.satuan) ?? units[0];
+        const basePrice = unitObj ? unitObj.harga_jual : Number(barang.harga_jual || 0);
+
+        const faktor = unitObj ? Number(unitObj.faktor || 1) : 1;
+        const totalQtyDasar = Number(i.jumlah || 0) * faktor;
+
+        const tipe = barang.tipe_harga_bertingkat || 'persen';
+
+        const min1 = barang.min_qty_1 !== null && barang.min_qty_1 !== undefined ? Number(barang.min_qty_1) : 0;
+        const val1 = Number(barang.nilai_tier_1 || 0);
+
+        const min2 = barang.min_qty_2 !== null && barang.min_qty_2 !== undefined ? Number(barang.min_qty_2) : 0;
+        const val2 = Number(barang.nilai_tier_2 || 0);
+
+        const min3 = barang.min_qty_3 !== null && barang.min_qty_3 !== undefined ? Number(barang.min_qty_3) : 0;
+        const val3 = Number(barang.nilai_tier_3 || 0);
+
+        const tiers = [];
+        if (min3 > 0 && val3 > 0) tiers.push({ min_qty: min3, nilai: val3 });
+        if (min2 > 0 && val2 > 0) tiers.push({ min_qty: min2, nilai: val2 });
+        if (min1 > 0 && val1 > 0) tiers.push({ min_qty: min1, nilai: val1 });
+
+        tiers.sort((a, b) => b.min_qty - a.min_qty);
+
+        const matched = tiers.find((t) => totalQtyDasar >= t.min_qty);
+        const matchedNilai = matched ? matched.nilai : null;
+
+        if (matchedNilai !== null && matchedNilai > 0) {
+            if (tipe === 'persen') {
+                const discounted = basePrice * (1 - matchedNilai / 100);
+                i.harga = Math.max(0, Math.round(discounted));
+            } else if (tipe === 'nominal') {
+                i.harga = Math.max(0, Math.round(matchedNilai * faktor));
+            }
+        } else {
+            i.harga = basePrice;
+        }
+    });
+}
+
 function renderCart() {
     const wrap = document.getElementById('cart-items');
     if (!wrap) return;
@@ -569,7 +620,7 @@ function renderCart() {
     } else {
         wrap.innerHTML = state.cart
             .map((i, idx) => {
-                const barang = state.barang.find((b) => b.id === i.barang_id);
+                const barang = state.barang.find((b) => Number(b.id) === Number(i.barang_id));
                 const units = barang ? getUnitsForBarang(barang) : [{ satuan: i.satuan, harga_jual: i.harga }];
 
                 const selectedUnitObj = units.find((u) => u.satuan === i.satuan) ?? units[0];
@@ -590,6 +641,8 @@ function renderCart() {
                     })
                     .join('');
 
+                const currentHarga = i.harga ?? selectedUnitObj.harga_jual;
+
                 return `<div data-cart-row="${idx}" tabindex="-1" class="relative py-3 px-2 border-b border-zinc-100 last:border-0 space-y-2 transition-colors duration-150 ${cartIdx === idx ? 'bg-zinc-50 ring-2 ring-zinc-900 rounded-xl' : ''}">
                     ${cartIdx === idx ? '<span class="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-zinc-900"></span>' : ''}
                     <div class="flex items-start justify-between gap-2">
@@ -601,7 +654,7 @@ function renderCart() {
                         <div class="relative min-w-0 flex-1" data-unit-dropdown-wrapper="${i.barang_id}">
                             <button type="button" data-unit-dropdown-btn="${i.barang_id}"
                                 class="w-full max-w-[185px] flex items-center justify-between gap-1.5 text-xs font-bold text-zinc-800 bg-zinc-100/90 hover:bg-zinc-200/70 border border-zinc-200/90 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 transition-all cursor-pointer">
-                                <span class="truncate">${selectedUnitObj.satuan} <span class="text-zinc-500 font-normal">(${rupiah(selectedUnitObj.harga_jual)})</span></span>
+                                <span class="truncate">${selectedUnitObj.satuan} <span class="text-zinc-500 font-normal">(${rupiah(currentHarga)})</span></span>
                                 <svg data-unit-dropdown-chevron="${i.barang_id}" class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M4 6l4 4 4-4"/>
                                 </svg>
@@ -679,6 +732,7 @@ function renderCart() {
 }
 
 function render() {
+    updateCartTierPrices();
     renderProduk();
     renderCart();
 }
@@ -1119,6 +1173,11 @@ async function init() {
         });
 
         cartItems.addEventListener('change', (e) => {
+            const qty = e.target.closest('[data-qty]');
+            if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
+        });
+
+        cartItems.addEventListener('input', (e) => {
             const qty = e.target.closest('[data-qty]');
             if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
         });

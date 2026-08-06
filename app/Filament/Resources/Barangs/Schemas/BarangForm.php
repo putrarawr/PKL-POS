@@ -62,6 +62,61 @@ class BarangForm
                         ]),
                     ]),
 
+                Section::make('Harga Jual Bertingkat (3 Level Quantity)')
+                    ->description('Opsional: Atur potongan harga bertingkat berdasarkan kuantitas minimal pembelian.')
+                    ->collapsible()
+                    ->columnSpanFull()
+                    ->schema([
+                        Select::make('tipe_harga_bertingkat')
+                            ->label('Tipe Potongan Tier')
+                            ->options([
+                                'persen' => 'Persentase Diskon (%)',
+                                'nominal' => 'Nominal Harga Jual per Unit (Rp)',
+                            ])
+                            ->default('persen')
+                            ->required(),
+
+                        Grid::make(3)->schema([
+                            Section::make('Tier Level 1')
+                                ->schema([
+                                    TextInput::make('min_qty_1')
+                                        ->label('Minimal Qty Tier 1')
+                                        ->numeric()
+                                        ->default(1)
+                                        ->required(),
+                                    TextInput::make('nilai_tier_1')
+                                        ->label('Nilai Tier 1 (% atau Rp)')
+                                        ->numeric()
+                                        ->default(0)
+                                        ->helperText('Isi 0 jika tidak ada diskon di Tier 1'),
+                                ]),
+
+                            Section::make('Tier Level 2')
+                                ->schema([
+                                    TextInput::make('min_qty_2')
+                                        ->label('Minimal Qty Tier 2')
+                                        ->numeric()
+                                        ->placeholder('Misal: 6'),
+                                    TextInput::make('nilai_tier_2')
+                                        ->label('Nilai Tier 2 (% atau Rp)')
+                                        ->numeric()
+                                        ->default(0),
+                                ]),
+
+                            Section::make('Tier Level 3')
+                                ->schema([
+                                    TextInput::make('min_qty_3')
+                                        ->label('Minimal Qty Tier 3')
+                                        ->numeric()
+                                        ->placeholder('Misal: 20'),
+                                    TextInput::make('nilai_tier_3')
+                                        ->label('Nilai Tier 3 (% atau Rp)')
+                                        ->numeric()
+                                        ->default(0),
+                                ]),
+                        ]),
+                    ]),
+
                 Section::make('Tingkatan Satuan & Harga Grosir (Level 2 - 4)')
                     ->description('Opsional: Atur konversi satuan bertingkat (Pack, Slof, Bal, Dus, dll) & harga khusus. Kosongkan jika produk hanya memiliki 1 satuan.')
                     ->collapsible()

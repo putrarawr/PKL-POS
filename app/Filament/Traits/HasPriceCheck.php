@@ -24,6 +24,23 @@ trait HasPriceCheck
             }
         }
 
+        // Cek Tier Harga Bertingkat
+        $tipe = $data['tipe_harga_bertingkat'] ?? 'persen';
+        for ($t = 1; $t <= 3; $t++) {
+            $qtyKey = "min_qty_{$t}";
+            $nilaiKey = "nilai_tier_{$t}";
+            if (!empty($data[$qtyKey]) && isset($data[$nilaiKey]) && (float)$data[$nilaiKey] > 0) {
+                $nilai = (float) $data[$nilaiKey];
+                $hargaTier = $tipe === 'persen'
+                    ? $hargaJual1 * (1 - ($nilai / 100))
+                    : $nilai;
+
+                if ($hargaBeli1 > 0 && $hargaTier < $hargaBeli1) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
@@ -53,6 +70,28 @@ trait HasPriceCheck
                     $hbFmt = number_format($hb, 0, ',', '.');
                     $hjFmt = number_format($hj, 0, ',', '.');
                     $warnings[] = "• {$sat} (Level {$i}): Harga Jual (Rp {$hjFmt}) < Harga Beli (Rp {$hbFmt}) [Rugi Rp {$diff}]";
+                }
+            }
+        }
+
+        // Cek Tier Harga Bertingkat
+        $tipe = $data['tipe_harga_bertingkat'] ?? 'persen';
+        for ($t = 1; $t <= 3; $t++) {
+            $qtyKey = "min_qty_{$t}";
+            $nilaiKey = "nilai_tier_{$t}";
+            if (!empty($data[$qtyKey]) && isset($data[$nilaiKey]) && (float)$data[$nilaiKey] > 0) {
+                $nilai = (float) $data[$nilaiKey];
+                $minQty = (int) $data[$qtyKey];
+                $hargaTier = $tipe === 'persen'
+                    ? $hargaJual1 * (1 - ($nilai / 100))
+                    : $nilai;
+
+                if ($hargaBeli1 > 0 && $hargaTier < $hargaBeli1) {
+                    $diff = number_format($hargaBeli1 - $hargaTier, 0, ',', '.');
+                    $hbFmt = number_format($hargaBeli1, 0, ',', '.');
+                    $hjFmt = number_format($hargaTier, 0, ',', '.');
+                    $detailVal = $tipe === 'persen' ? "{$nilai}%" : "Rp " . number_format($nilai, 0, ',', '.');
+                    $warnings[] = "• Harga Bertingkat Tier {$t} (Min Qty {$minQty}, Nilai: {$detailVal}): Harga Efektif (Rp {$hjFmt}) < Harga Beli (Rp {$hbFmt}) [Rugi Rp {$diff}]";
                 }
             }
         }

@@ -105,6 +105,14 @@ class KasirController extends Controller
                     'jenis_barang_id' => $b->jenis_barang_id,
                     'nama_barang' => $b->nama_barang,
                     'harga_jual' => (int) $b->harga_jual,
+                    'harga_beli' => (int) $b->harga_beli,
+                    'tipe_harga_bertingkat' => $b->tipe_harga_bertingkat ?? 'persen',
+                    'min_qty_1' => filled($b->min_qty_1) ? (int) $b->min_qty_1 : null,
+                    'nilai_tier_1' => (float) ($b->nilai_tier_1 ?? 0),
+                    'min_qty_2' => filled($b->min_qty_2) ? (int) $b->min_qty_2 : null,
+                    'nilai_tier_2' => (float) ($b->nilai_tier_2 ?? 0),
+                    'min_qty_3' => filled($b->min_qty_3) ? (int) $b->min_qty_3 : null,
+                    'nilai_tier_3' => (float) ($b->nilai_tier_3 ?? 0),
                     'satuan' => $b->satuan ?? 'Pcs',
                     'units' => $b->getAvailableUnits(),
                     // stok per gudang dari pivot barang_gudang: { gudang_id: jumlah_dasar }
@@ -114,6 +122,37 @@ class KasirController extends Controller
                 'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
             ],
         ]);
+    }
+
+    /**
+     * Endpoint API JSON untuk mengambil data produk & stok terbaru secara live.
+     */
+    public function data()
+    {
+        return response()->json([
+            'barang' => Barang::with('gudangs')->get()->map(fn ($b) => [
+                'id' => $b->id,
+                'jenis_barang_id' => $b->jenis_barang_id,
+                'nama_barang' => $b->nama_barang,
+                'harga_jual' => (int) $b->harga_jual,
+                'harga_beli' => (int) $b->harga_beli,
+                'tipe_harga_bertingkat' => $b->tipe_harga_bertingkat ?? 'persen',
+                'min_qty_1' => filled($b->min_qty_1) ? (int) $b->min_qty_1 : null,
+                'nilai_tier_1' => (float) ($b->nilai_tier_1 ?? 0),
+                'min_qty_2' => filled($b->min_qty_2) ? (int) $b->min_qty_2 : null,
+                'nilai_tier_2' => (float) ($b->nilai_tier_2 ?? 0),
+                'min_qty_3' => filled($b->min_qty_3) ? (int) $b->min_qty_3 : null,
+                'nilai_tier_3' => (float) ($b->nilai_tier_3 ?? 0),
+                'satuan' => $b->satuan ?? 'Pcs',
+                'units' => $b->getAvailableUnits(),
+                'stok' => $b->gudangs->mapWithKeys(fn ($g) => [$g->id => (int) $g->pivot->stok]),
+            ]),
+            'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
+            'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
+        ])
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**
@@ -146,7 +185,7 @@ class KasirController extends Controller
                 // lockForUpdate biar aman kalau dua kasir jualan barang sama barengan
                 $barang = Barang::lockForUpdate()->findOrFail($d['barang_id']);
                 $satuan = $d['satuan'] ?? $barang->satuan;
-                $hargaSatuan = $barang->getHargaJualForSatuan($satuan);
+                $hargaSatuan = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
                 $faktor = $barang->getFaktorKonversi($satuan);
                 $jumlahDasar = $d['jumlah'] * $faktor;
 

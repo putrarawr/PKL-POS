@@ -69,6 +69,25 @@ const sumber = () => (USE_MOCK ? mockData : window.KASIR_DATA);
 // ---------------------------------------------------------------------
 
 export async function getBarang() {
+    if (!USE_MOCK) {
+        try {
+            const res = await fetch('/kasir/data?_t=' + Date.now(), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (res.ok) {
+                const fresh = await res.json();
+                if (fresh && fresh.barang) {
+                    window.KASIR_DATA = fresh;
+                    return fresh.barang;
+                }
+            }
+        } catch (e) {
+            console.warn('Menggunakan fallback window.KASIR_DATA:', e);
+        }
+    }
     return structuredClone(sumber().barang);
 }
 
