@@ -384,7 +384,7 @@
                         <input type="checkbox" name="remember" value="1" class="remember-checkbox">
                         <span class="remember-text">Remember Me</span>
                     </label>
-                    <a href="#" class="forgot-link" onclick="alert('Fitur belum tersedia'); return false;">Forgot?</a>
+                    <a href="#" class="forgot-link" id="forgot-link">Forgot?</a>
                 </div>
 
                 {{-- SUBMIT --}}
@@ -401,7 +401,25 @@
         </div>
     </div>
 
-    {{-- TOGGLE PASSWORD SCRIPT --}}
+    {{-- MODAL LUPAS PASSWORD --}}
+    <div id="forgot-modal" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(9,9,11,.45); align-items:center; justify-content:center; padding:24px;">
+        <div style="background:#fff; border-radius:16px; max-width:360px; width:100%; padding:32px 28px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,.2);">
+            <div style="width:56px; height:56px; margin:0 auto 16px; background:#f4f4f5; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#09090b;">
+                <svg style="width:26px; height:26px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h2 style="font-size:15px; font-weight:700; letter-spacing:-0.01em; margin-bottom:8px; color:#09090b;">Lupa Password?</h2>
+            <p style="font-size:12.5px; color:#52525b; line-height:1.6; margin-bottom:20px;">
+                Untuk mereset password, silakan hubungi <strong>admin toko</strong>. Anda bisa mengatur ulang password melalui halaman admin pada menu Karyawan.
+            </p>
+            <button type="button" id="forgot-close"
+                style="width:100%; height:44px; background:#09090b; color:#fff; font-weight:700; font-size:13.5px; border:none; border-radius:10px; cursor:pointer;">Mengerti</button>
+        </div>
+    </div>
+
+    {{-- TOGGLE PASSWORD & FORGOT SCRIPT --}}
     <script>
         document.getElementById('btn-toggle-pw').addEventListener('click', function () {
             const input = document.getElementById('login-password');
@@ -419,6 +437,30 @@
                 iconEyeOff.style.display = 'none';
             }
         });
+
+        // Modal "Lupa Password" — hubungi admin
+        const forgotModal = document.getElementById('forgot-modal');
+        const forgotLink = document.getElementById('forgot-link');
+        const forgotClose = document.getElementById('forgot-close');
+
+        function bukaForgot(e) {
+            e.preventDefault();
+            forgotModal.style.display = 'flex';
+        }
+        function tutupForgot() {
+            forgotModal.style.display = 'none';
+        }
+
+        if (forgotLink) forgotLink.addEventListener('click', bukaForgot);
+        if (forgotClose) forgotClose.addEventListener('click', tutupForgot);
+        if (forgotModal) {
+            forgotModal.addEventListener('click', function (e) {
+                if (e.target === forgotModal) tutupForgot();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') tutupForgot();
+            });
+        }
     </script>
 </body>
 </html>

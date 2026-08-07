@@ -156,6 +156,52 @@ class KasirController extends Controller
     }
 
     /**
+     * Riwayat transaksi (default: hari ini). Dipakai halaman kasir
+     * untuk melihat nota & cetak ulang struk.
+     */
+    public function riwayat(Request $request)
+    {
+        $tanggal = $request->query('tanggal', now()->toDateString());
+        $limit = max(1, min((int) $request->query('limit', 50), 200));
+        $offset = max(0, (int) $request->query('offset', 0));
+
+        $penjualan = Penjualan::with(['details.barang', 'gudang'])
+            ->whereDate('tanggal', $tanggal)
+            ->orderByDesc('id')
+            ->offset($offset)
+            ->limit($limit)
+            ->get();
+
+        return response()->json($penjualan->map(fn ($p) => [
+            'id' => $p->id,
+            'nomer_nota' => $p->nomer_nota,
+            'tanggal' => (string) $p->tanggal,
+            'jam' => $p->created_at?->isSameDay($p->tanggal)
+                ? $p->created_at->format('H:i')
+                : '-',
+            'total' => (int) $p->total,
+            'diskon' => (int) $p->diskon,
+            'neto' => (int) $p->neto,
+            'jenis_pembayaran' => $p->jenis_pembayaran,
+            'bayar' => (int) $p->bayar,
+            'kembalian' => (int) $p->kembalian,
+            'nama_kasir' => $p->getNamaKasirAttribute(),
+            'gudang' => $p->gudang?->nama_gudang ?? '-',
+            'jumlah_item' => $p->details->sum(
+                fn ($d) => (int) $d->jumlah * (int) ($d->barang?->getFaktorKonversi($d->satuan) ?? 1)
+            ),
+            'details' => $p->details->map(fn ($d) => [
+                'nama_barang' => $d->barang?->nama_barang ?? '-',
+                'jumlah' => (int) $d->jumlah,
+                'satuan' => $d->satuan,
+                'harga' => (int) $d->harga,
+                'diskon' => (int) $d->diskon,
+                'subtotal' => (int) $d->subtotal,
+            ]),
+        ]));
+    }
+
+    /**
      * Simpan transaksi kasir.
      * Alurnya ngikutin pola CreatePembelian::afterCreate() punya admin Filament,
      * tapi arah stoknya keluar via StokService::kurangiStok().

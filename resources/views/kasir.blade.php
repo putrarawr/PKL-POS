@@ -129,6 +129,16 @@
                     </svg>
                 </button>
 
+                {{-- Tombol Riwayat Transaksi --}}
+                <button id="btn-riwayat" type="button" title="Riwayat transaksi"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                    <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9 -9a9.75 9.75 0 0 0 -6.74 2.74l-2.26 -2"/>
+                        <path d="M3 3v5h5"/>
+                        <path d="M12 7v5l3 3"/>
+                    </svg>
+                </button>
+
                 {{-- Tombol Logout --}}
                 <form method="POST" action="{{ route('kasir.logout') }}">
                     @csrf
@@ -161,10 +171,14 @@
                         </button>
                     </div>
 
-                    <div id="filter-jenis" class="inline-flex flex-wrap w-fit gap-1 bg-zinc-200/60 rounded-xl p-1 mt-4 mb-6"></div>
+                    <div id="filter-jenis" class="inline-flex flex-wrap w-fit gap-1 bg-zinc-200/60 rounded-xl p-1 mt-4 mb-4"></div>
+                    <div id="label-gudang-aktif" class="hidden mb-6 text-[11px] font-semibold text-zinc-400 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                        Stok dari: <span class="font-bold text-zinc-600" id="label-gudang-aktif-nama"></span>
+                    </div>
 
                     <div id="grid-produk"
-                        class="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-4 content-start pb-8 pr-1"></div>
+                        class="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-4 content-start pt-3 pb-8 px-2"></div>
                 </div>
             </main>
 
@@ -175,6 +189,7 @@
                         <h2 class="font-bold tracking-tight">Pesanan</h2>
                         <span id="badge-cart-count"
                             class="hidden min-w-6 h-6 px-1.5 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center tabular-nums"></span>
+                        <span id="lbl-item-jenis" class="hidden text-xs font-semibold text-zinc-400"></span>
                     </div>
                     <button id="btn-reset"
                         class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
@@ -204,6 +219,7 @@
                             <span class="font-bold">Total</span>
                             <span id="lbl-neto" class="inline-block origin-right text-2xl font-black tracking-tight tabular-nums">Rp 0</span>
                         </div>
+                        <p id="rangkuman-bayaran" class="hidden flex justify-between items-center text-sm tabular-nums"></p>
                     </div>
 
                     <button id="btn-toggle-payment" type="button"
@@ -266,10 +282,14 @@
                         </div>
                     </div>
 
-                    <button id="btn-bayar" type="button"
-                        class="w-full h-13 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none text-white text-sm font-bold rounded-xl py-4 tabular-nums transition cursor-pointer">
+                    <div class="flex gap-2.5">
+                        <button id="btn-preview-struk" type="button"
+                            class="flex-1 border border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3.5 text-sm transition-colors cursor-pointer">Preview Struk</button>
+                        <button id="btn-bayar" type="button"
+                            class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-40 disabled:pointer-events-none text-white text-sm font-black rounded-xl py-3.5 tabular-nums transition cursor-pointer shadow-lg shadow-zinc-900/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-zinc-900/25">
                         Bayar
                     </button>
+                    </div>
                 </div>
             </aside>
         </div>
@@ -415,6 +435,47 @@
             <div class="px-6 py-4 border-t border-zinc-100">
                 <button id="btn-selesai-panduan-shortcut" type="button"
                     class="w-full bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white text-sm font-bold rounded-xl py-3 transition cursor-pointer">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL RIWAYAT TRANSAKSI --}}
+    <div id="modal-riwayat" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85dvh]">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+                <div>
+                    <h3 class="text-sm font-bold tracking-tight">Riwayat Transaksi</h3>
+                    <p class="text-[11px] text-zinc-400 mt-0.5" id="riwayat-tanggal-label">Transaksi hari ini</p>
+                </div>
+                <button id="btn-tutup-riwayat" type="button"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="shrink-0 flex items-center gap-2 px-6 py-3 border-b border-zinc-100">
+                <input id="riwayat-tanggal" type="date"
+                    class="flex-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 bg-white focus:outline-none focus:border-zinc-900 transition-colors cursor-pointer tabular-nums">
+                <button id="btn-riwayat-hari-ini" type="button"
+                    class="shrink-0 px-4 py-2 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:border-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer">Hari Ini</button>
+            </div>
+            <div id="riwayat-pemuatan" class="px-6 py-12 text-center text-sm font-semibold text-zinc-400">Memuat riwayat…</div>
+            <div id="riwayat-list" class="hidden flex-1 overflow-y-auto px-4 py-3 divide-y divide-zinc-100"></div>
+            <div id="riwayat-kosong" class="hidden px-6 py-12 text-center">
+                <svg class="w-10 h-10 text-zinc-200 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="3" width="16" height="18" rx="2"></rect>
+                    <path d="M8 8h8M8 12h8M8 16h5"></path>
+                </svg>
+                <p class="text-sm font-bold text-zinc-500">Belum ada transaksi pada tanggal ini</p>
+            </div>
+            <div class="px-4 py-3">
+                <button id="btn-riwayat-lebih" type="button"
+                    class="hidden w-full border border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-2.5 text-xs transition-all cursor-pointer">Muat lebih banyak</button>
+            </div>
+            <div class="px-6 py-4 border-t border-zinc-100">
+                <button id="btn-tutup-riwayat-bawah" type="button"
+                    class="w-full border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Tutup</button>
             </div>
         </div>
     </div>

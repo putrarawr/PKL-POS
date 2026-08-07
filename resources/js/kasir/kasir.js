@@ -9,6 +9,7 @@ import {
     getBarang,
     getJenisBarang,
     getGudang,
+    getRiwayat,
     simpanPenjualan,
     USE_MOCK,
 } from './api.js';
@@ -340,7 +341,7 @@ async function prosesBayar() {
 
     const payload = {
         gudang_id: state.gudangId,
-        tanggal: new Date().toISOString().slice(0, 10),
+        tanggal: tanggalHariIni(),
         total: totalKotor(),
         diskon: nominalDiskon(),
         neto: totalNeto(),
@@ -388,15 +389,33 @@ async function prosesBayar() {
 
 // ------------------------- STRUK -------------------------
 
+function escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
 function tampilkanStruk(payload) {
-    const gudang = state.gudang.find((g) => g.id === payload.gudang_id);
+    const gudangNama = payload.nama_gudang
+        || state.gudang.find((g) => g.id === payload.gudang_id)?.nama_gudang
+        || '';
+
+    const diskonPersen = typeof payload.diskon_persen === 'number'
+        ? payload.diskon_persen
+        : state.diskonTransaksi;
 
     const rows = payload.details
         .map((d) => {
-            const nama = state.barang.find((b) => b.id === d.barang_id)?.nama_barang ?? '-';
+            const nama = d.nama_barang
+                ?? state.barang.find((b) => b.id === d.barang_id)?.nama_barang
+                ?? '-';
             return `<tr>
-                <td class="py-0.5 pr-2">${nama}</td>
-                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${d.satuan} x ${rupiah(d.harga)}</td>
+                <td class="py-0.5 pr-2">${escapeHtml(nama)}</td>
+                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)} x ${rupiah(d.harga)}</td>
                 <td class="py-0.5 pl-2 text-right">${rupiah(d.subtotal)}</td>
             </tr>`;
         })
@@ -407,23 +426,23 @@ function tampilkanStruk(payload) {
             ? `transfer ${state.bankTransfer}`
             : payload.jenis_pembayaran;
 
-    const namaKasir = (typeof window !== 'undefined' && window.KASIR_DATA?.karyawan?.nama)
-        ? window.KASIR_DATA.karyawan.nama
-        : 'Kasir';
+    const namaKasir = payload.nama_kasir
+        || (typeof window !== 'undefined' && window.KASIR_DATA?.karyawan?.nama)
+        || 'Kasir';
 
     const body = document.getElementById('struk-body');
     if (body) {
         body.innerHTML = `
             <div class="text-center mb-5">
                 <p class="font-black text-lg tracking-tight">TOKO PKL</p>
-                <p class="text-xs text-zinc-400 mt-1">${gudang?.nama_gudang ?? ''}</p>
-                <p class="text-xs text-zinc-400">${payload.nomer_nota} &middot; ${payload.tanggal}</p>
-                <p class="text-xs font-semibold text-zinc-600 mt-0.5">Kasir: ${namaKasir}</p>
+                <p class="text-xs text-zinc-400 mt-1">${escapeHtml(gudangNama)}</p>
+                <p class="text-xs text-zinc-400">${escapeHtml(payload.nomer_nota)} &middot; ${payload.tanggal}</p>
+                <p class="text-xs font-semibold text-zinc-600 mt-0.5">Kasir: ${escapeHtml(namaKasir)}</p>
             </div>
             <table class="w-full text-sm border-y border-dashed border-zinc-300 py-2 my-2 tabular-nums">${rows}</table>
             <div class="text-sm space-y-2 mt-4 tabular-nums">
                 <div class="flex justify-between text-zinc-500"><span>Subtotal</span><span class="font-semibold text-zinc-900">${rupiah(payload.total)}</span></div>
-                <div class="flex justify-between text-zinc-500"><span>Diskon ${state.diskonTransaksi > 0 ? `(${state.diskonTransaksi}%)` : ''}</span><span class="font-semibold text-zinc-900">- ${rupiah(payload.diskon)}</span></div>
+                <div class="flex justify-between text-zinc-500"><span>Diskon ${diskonPersen > 0 ? `(${diskonPersen}%)` : ''}</span><span class="font-semibold text-zinc-900">- ${rupiah(payload.diskon)}</span></div>
                 <div class="flex justify-between items-baseline border-t border-dashed border-zinc-300 pt-2.5 mt-2.5">
                     <span class="font-bold">Total</span><span class="font-black text-base">${rupiah(payload.neto)}</span>
                 </div>
@@ -435,6 +454,162 @@ function tampilkanStruk(payload) {
     }
     document.getElementById('modal-struk')?.classList.remove('hidden');
     document.getElementById('btn-print-struk')?.focus();
+}
+
+// ------------------------- RIWAYAT TRANSAKSI -------------------------
+
+function formatTanggalRupiah(tgl) {
+    if (!tgl) return '';
+    const [tahun, bulan, hari] = tgl.split('-');
+    if (!tahun || !bulan || !hari) return tgl;
+    return `${hari}-${bulan}-${tahun}`;
+}
+
+function tanggalHariIni() {
+    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date());
+}
+
+let riwayatTanggalAktif = null;
+let riwayatReqId = 0;
+const RIWAYAT_BATCH = 50;
+let riwayatCache = [];
+let riwayatOffset = 0;
+let riwayatHasMore = false;
+
+function renderRiwayatItems(items, append) {
+    const list = document.getElementById('riwayat-list');
+    if (!list) return;
+    if (append) {
+        list.innerHTML += items
+            .map((r) => templateRiwayatItem(r))
+            .join('');
+    } else {
+        list.innerHTML = items.map((r) => templateRiwayatItem(r)).join('');
+    }
+}
+
+function templateRiwayatItem(r) {
+    const labelBayar = r.jenis_pembayaran === 'transfer'
+        ? 'Transfer'
+        : r.jenis_pembayaran?.toUpperCase() ?? '-';
+    return `<div class="flex items-center justify-between gap-3 py-3 px-2">
+        <div class="min-w-0">
+            <p class="text-sm font-bold text-zinc-900 truncate">${escapeHtml(r.nomer_nota)}</p>
+            <p class="text-[11px] text-zinc-400 mt-0.5">
+                ${escapeHtml(r.jam)} · ${escapeHtml(r.nama_kasir)} · ${r.jumlah_item} item · ${escapeHtml(r.gudang)}
+            </p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+            <div class="text-right">
+                <p class="text-sm font-black tabular-nums">${rupiah(r.neto)}</p>
+                <p class="text-[10px] font-bold ${r.jenis_pembayaran === 'tunai' ? 'text-emerald-600' : 'text-sky-600'}">${labelBayar}</p>
+            </div>
+            <button type="button" data-cetak-ulang="${r.id}"
+                class="shrink-0 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:border-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer">Cetak</button>
+        </div>
+    </div>`;
+}
+
+function setRiwayatLebih(visible) {
+    const btn = document.getElementById('btn-riwayat-lebih');
+    if (btn) btn.classList.toggle('hidden', !visible);
+}
+
+async function muatRiwayat(tanggal, append = false) {
+    const reqId = ++riwayatReqId;
+    riwayatTanggalAktif = tanggal;
+    const pemuatan = document.getElementById('riwayat-pemuatan');
+    const list = document.getElementById('riwayat-list');
+    const kosong = document.getElementById('riwayat-kosong');
+    const label = document.getElementById('riwayat-tanggal-label');
+
+    if (!append) {
+        riwayatOffset = 0;
+        riwayatHasMore = false;
+        riwayatCache = [];
+        list?.classList.add('hidden');
+        kosong?.classList.add('hidden');
+        setRiwayatLebih(false);
+        pemuatan?.classList.remove('hidden');
+    }
+
+    const labelTeks = tanggal
+        ? `Transaksi ${formatTanggalRupiah(tanggal)}`
+        : 'Transaksi hari ini';
+    if (label) label.textContent = labelTeks;
+
+    try {
+        const riwayat = await getRiwayat(tanggal, { limit: RIWAYAT_BATCH, offset: riwayatOffset });
+        if (reqId !== riwayatReqId) return;
+        pemuatan?.classList.add('hidden');
+
+        if (riwayat.length === 0 && !append) {
+            list?.classList.add('hidden');
+            kosong?.classList.remove('hidden');
+            setRiwayatLebih(false);
+            return;
+        }
+
+        riwayatCache = append ? riwayatCache.concat(riwayat) : riwayat;
+        riwayatOffset += riwayat.length;
+        riwayatHasMore = riwayat.length === RIWAYAT_BATCH;
+        renderRiwayatItems(riwayat, append);
+
+        list?.classList.remove('hidden');
+        kosong?.classList.add('hidden');
+        setRiwayatLebih(riwayatHasMore);
+    } catch (e) {
+        if (reqId !== riwayatReqId) return;
+        pemuatan?.classList.add('hidden');
+        pemuatan.textContent = e.message ?? 'Gagal memuat riwayat';
+        pemuatan.classList.remove('hidden');
+    }
+}
+
+function bukaModalRiwayat() {
+    const modal = document.getElementById('modal-riwayat');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const inputTanggal = document.getElementById('riwayat-tanggal');
+    if (inputTanggal) inputTanggal.value = tanggalHariIni();
+    muatRiwayat(inputTanggal?.value || tanggalHariIni());
+}
+
+function tutupModalRiwayat() {
+    document.getElementById('modal-riwayat')?.classList.add('hidden');
+}
+
+function cetakUlangRiwayat(penjualanId) {
+    const r = riwayatCache.find((x) => String(x.id) === String(penjualanId));
+    if (!r) {
+        toast('Nota tidak ditemukan', true);
+        return;
+    }
+    tampilkanStruk({
+        gudang_id: state.gudangId,
+        nama_gudang: r.gudang,
+        tanggal: r.tanggal,
+        total: r.total,
+        diskon: r.diskon,
+        diskon_persen: 0,
+        neto: r.neto,
+        jenis_pembayaran: r.jenis_pembayaran,
+        bayar: r.bayar,
+        kembalian: r.kembalian,
+        nomer_nota: r.nomer_nota,
+        nama_kasir: r.nama_kasir,
+        details: r.details.map((d) => ({
+            barang_id: null,
+            nama_barang: d.nama_barang,
+            jumlah: d.jumlah,
+            satuan: d.satuan,
+            harga: d.harga,
+            diskon: d.diskon,
+            subtotal: d.subtotal,
+        })),
+    });
+    tutupModalRiwayat();
 }
 
 // ------------------------- RENDER -------------------------
@@ -501,6 +676,13 @@ function renderProduk() {
     const animate = key !== lastProdukKey;
     lastProdukKey = key;
 
+    const labelGudang = document.getElementById('label-gudang-aktif');
+    const labelGudangNama = document.getElementById('label-gudang-aktif-nama');
+    if (labelGudang && labelGudangNama) {
+        labelGudang.classList.toggle('hidden', !state.gudangId);
+        labelGudangNama.textContent = namaGudangSekarang();
+    }
+
     if (list.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-20">
             <p class="text-sm font-semibold text-zinc-500">Barang tidak ditemukan</p>
@@ -522,6 +704,7 @@ function renderProduk() {
             const units = getUnitsForBarang(b);
             const defaultUnit = units[0]?.satuan ?? b.satuan ?? 'Pcs';
             const jumlahDiKeranjang = state.cart.find((i) => i.barang_id === b.id)?.jumlah ?? 0;
+            const diKeranjang = jumlahDiKeranjang > 0;
 
             const hasTier = (b.min_qty_2 && Number(b.nilai_tier_2) > 0) || (b.min_qty_3 && Number(b.nilai_tier_3) > 0) || (b.min_qty_1 && Number(b.nilai_tier_1) > 0);
             const tierBadgeProdukHtml = hasTier
@@ -529,11 +712,13 @@ function renderProduk() {
                 : '';
 
             return `<button data-add="${b.id}" style="--i: ${Math.min(idx, 16)}"
-                class="${animate ? 'anim-fade-up ' : ''}relative group text-left bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col gap-3 transition duration-200
+                class="${animate ? 'anim-fade-up ' : ''}relative group text-left bg-white rounded-2xl border p-4 flex flex-col gap-3 transition duration-200
+                       ${diKeranjang ? 'border-zinc-900 ring-1 ring-zinc-900 bg-zinc-50' : 'border-zinc-200'}
                        ${habis
                            ? 'opacity-40 cursor-not-allowed'
                            : 'cursor-pointer hover:border-zinc-900 hover:shadow-lg hover:shadow-zinc-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]'}
                        ${kelasRing}">
+                ${diKeranjang ? `<span class="absolute -top-2 -left-2 z-10 px-2 py-0.5 rounded-lg bg-zinc-900 text-white text-[10px] font-bold shadow-sm">Di keranjang</span>` : ''}
                 ${jumlahDiKeranjang > 0 ? `<span class="absolute bottom-3 right-3 min-w-6 h-6 px-1.5 rounded-lg bg-zinc-900 text-white text-[11px] font-bold flex items-center justify-center tabular-nums shadow-sm">×${jumlahDiKeranjang}</span>` : ''}
                 <div class="flex items-start justify-between gap-2">
                     <div class="w-10 h-10 rounded-xl ${tileTint(b.nama_barang)} flex items-center justify-center text-xs font-black select-none">
@@ -607,7 +792,7 @@ function renderCart() {
     if (state.cart.length === 0) cartIdx = -1;
 
     if (state.cart.length === 0) {
-        wrap.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center py-16">
+        wrap.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center py-16 px-4">
             <svg class="w-10 h-10 text-zinc-200 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
                 <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
@@ -673,6 +858,14 @@ function renderCart() {
                         </div>
                         <p class="text-xs font-bold text-zinc-900 tabular-nums text-right shrink-0 min-w-[70px]">${rupiah(subtotalItem(i))}</p>
                     </div>
+                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                        <span class="text-[11px] text-zinc-400 tabular-nums font-medium">
+                            ${i.jumlah} ${selectedUnitObj.satuan} × ${rupiah(currentHarga)}
+                        </span>
+                        ${Number(i.diskon || 0) > 0
+                            ? `<span class="text-[11px] text-red-500 tabular-nums font-semibold">diskon −${rupiah(i.diskon)}</span>`
+                            : `<span class="text-[11px] text-zinc-300 font-semibold">${rupiah(subtotalItem(i))}</span>`}
+                    </div>
                 </div>`;
             })
             .join('');
@@ -685,6 +878,12 @@ function renderCart() {
         badge.textContent = totalItem;
     }
 
+    const lblItemJenis = document.getElementById('lbl-item-jenis');
+    if (lblItemJenis) {
+        lblItemJenis.classList.toggle('hidden', state.cart.length === 0);
+        lblItemJenis.textContent = `· ${state.cart.length} barang`;
+    }
+
     const hintCart = document.getElementById('hint-cart-selected');
     const hintCartPos = document.getElementById('hint-cart-pos');
     if (hintCart) {
@@ -694,9 +893,7 @@ function renderCart() {
     }
 
     const lblTotal = document.getElementById('lbl-total');
-    const lblKembalian = document.getElementById('lbl-kembalian');
     if (lblTotal) lblTotal.textContent = rupiah(totalKotor());
-    if (lblKembalian) lblKembalian.textContent = rupiah(kembalian());
 
     const lblNeto = document.getElementById('lbl-neto');
     if (lblNeto) {
@@ -717,6 +914,45 @@ function renderCart() {
 
     const btnUangPas = document.getElementById('btn-uang-pas');
     if (btnUangPas) btnUangPas.textContent = `Uang pas (${rupiah(totalNeto())})`;
+
+    const lblKembalian = document.getElementById('lbl-kembalian');
+    if (lblKembalian) {
+        if (state.jenisPembayaran === 'tunai') {
+            const kurang = state.bayar > 0 && state.bayar < totalNeto();
+            lblKembalian.classList.remove('hidden');
+            lblKembalian.textContent = kurang
+                ? `Kurang ${rupiah(totalNeto() - state.bayar)}`
+                : `Kembalian ${rupiah(kembalian())}`;
+            lblKembalian.classList.toggle('text-red-600', kurang);
+            lblKembalian.classList.toggle('text-emerald-600', !kurang && state.bayar > 0);
+        } else {
+            lblKembalian.classList.add('hidden');
+        }
+    }
+
+    const rangkuman = document.getElementById('rangkuman-bayaran');
+    if (rangkuman) {
+        const bayarTunai = state.jenisPembayaran === 'tunai';
+        const tunaiBerisi = bayarTunai && state.bayar > 0;
+        if (!bayarTunai || tunaiBerisi) {
+            rangkuman.classList.remove('hidden');
+            let kiri, kanan;
+            if (bayarTunai) {
+                const kurang = state.bayar < totalNeto();
+                kiri = kurang ? `<span class="text-red-600 font-bold">Kurang</span>` : `<span class="text-zinc-500">Kembalian</span>`;
+                kanan = `<span class="${kurang ? 'text-red-600' : 'text-emerald-600'} font-bold">${kurang ? rupiah(totalNeto() - state.bayar) : rupiah(kembalian())}</span>`;
+            } else {
+                const labelPembayaran = state.jenisPembayaran === 'transfer'
+                    ? `Transfer ${state.bankTransfer}`
+                    : state.jenisPembayaran.toUpperCase() === 'QRIS' ? 'QRIS' : 'Tunai';
+                kiri = `<span class="text-zinc-500">${labelPembayaran}</span>`;
+                kanan = `<span class="font-bold">${rupiah(totalNeto())}</span>`;
+            }
+            rangkuman.innerHTML = `<span>${kiri}</span><span>${kanan}</span>`;
+        } else {
+            rangkuman.classList.add('hidden');
+        }
+    }
 
     const rowTunai = document.getElementById('row-tunai');
     const rowQris = document.getElementById('row-qris');
@@ -1012,7 +1248,7 @@ async function init() {
     }
 
     document.addEventListener('keydown', (e) => {
-        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-panduan-shortcut'].some((id) => {
+        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-panduan-shortcut', 'modal-riwayat'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -1294,6 +1530,29 @@ async function init() {
         togglePaymentDetails();
     });
     document.getElementById('btn-bayar')?.addEventListener('click', prosesBayar);
+    document.getElementById('btn-preview-struk')?.addEventListener('click', () => {
+        if (state.cart.length === 0) {
+            toast('Keranjang masih kosong', true);
+            return;
+        }
+        if (!state.gudangId) {
+            toast('Pilih gudang dulu', true);
+            return;
+        }
+        const preview = {
+            gudang_id: state.gudangId,
+            tanggal: tanggalHariIni(),
+            total: totalKotor(),
+            diskon: nominalDiskon(),
+            neto: totalNeto(),
+            jenis_pembayaran: state.jenisPembayaran,
+            bayar: state.jenisPembayaran === 'tunai' ? state.bayar : totalNeto(),
+            kembalian: state.jenisPembayaran === 'tunai' ? kembalian() : 0,
+            nomer_nota: 'Preview',
+            details: state.cart.map((i) => ({ ...i, subtotal: subtotalItem(i) })),
+        };
+        tampilkanStruk(preview);
+    });
 
     document.getElementById('btn-reset')?.addEventListener('click', () => {
         if (state.cart.length > 0) bukaModalReset();
@@ -1334,6 +1593,31 @@ async function init() {
         if (e.target === modalPanduan) tutupPanduanShortcut();
     });
 
+    // Riwayat transaksi
+    document.getElementById('btn-riwayat')?.addEventListener('click', bukaModalRiwayat);
+    document.getElementById('btn-tutup-riwayat')?.addEventListener('click', tutupModalRiwayat);
+    document.getElementById('btn-tutup-riwayat-bawah')?.addEventListener('click', tutupModalRiwayat);
+    document.getElementById('riwayat-tanggal')?.addEventListener('change', (e) => {
+        muatRiwayat(e.target.value);
+    });
+    document.getElementById('btn-riwayat-hari-ini')?.addEventListener('click', () => {
+        const input = document.getElementById('riwayat-tanggal');
+        const tgl = tanggalHariIni();
+        if (input) input.value = tgl;
+        muatRiwayat(tgl);
+    });
+    document.getElementById('btn-riwayat-lebih')?.addEventListener('click', () => {
+        if (riwayatHasMore) muatRiwayat(riwayatTanggalAktif, true);
+    });
+    const modalRiwayat = document.getElementById('modal-riwayat');
+    modalRiwayat?.addEventListener('click', (e) => {
+        if (e.target === modalRiwayat) tutupModalRiwayat();
+    });
+    document.getElementById('riwayat-list')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-cetak-ulang]');
+        if (btn) cetakUlangRiwayat(btn.dataset.cetakUlang);
+    });
+
     document.addEventListener('keydown', (e) => {
         const panduanTerbuka = !modalPanduan?.classList.contains('hidden');
         const mod = e.ctrlKey || e.metaKey;
@@ -1355,7 +1639,7 @@ async function init() {
                 fokusCartRow();
                 return;
             }
-            const urutanModal = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang'];
+            const urutanModal = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-riwayat'];
             const terbuka = urutanModal.find((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
@@ -1383,7 +1667,7 @@ async function init() {
                 tutupPanduanShortcut();
                 return;
             }
-            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang'].some((id) => {
+            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-riwayat'].some((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
             });
@@ -1422,7 +1706,7 @@ async function init() {
             }
         }
 
-        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang'].some((id) => {
+        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-riwayat'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });

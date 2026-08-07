@@ -100,6 +100,35 @@ export async function getGudang() {
 }
 
 /**
+ * Riwayat transaksi (default: hari ini). GET /kasir/riwayat.
+ * Saat mode mock, kembalikan array kosong (sesi local tidak menyimpan riwayat).
+ */
+export async function getRiwayat(tanggal, { limit, offset } = {}) {
+    if (USE_MOCK) {
+        await new Promise((r) => setTimeout(r, 250));
+        return [];
+    }
+
+    const params = new URLSearchParams();
+    if (tanggal) params.set('tanggal', tanggal);
+    if (limit != null) params.set('limit', limit);
+    if (offset != null) params.set('offset', offset);
+    const url = `/kasir/riwayat${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+    });
+
+    if (res.redirected && !res.ok) {
+        throw new Error('Sesi berakhir. Silakan login ulang.');
+    }
+    if (!res.ok) {
+        throw new Error(`Gagal memuat riwayat (${res.status})`);
+    }
+    return res.json();
+}
+
+/**
  * Simpan transaksi kasir → POST /kasir/simpan (route web biasa, bukan API).
  *
  * Yang dipakai server cuma: customer_id, gudang_id, tanggal, diskon,
