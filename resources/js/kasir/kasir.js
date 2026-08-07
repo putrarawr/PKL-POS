@@ -38,78 +38,16 @@ const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
  * Generates multi-tier unit options (Pcs, Pack, Dus, Slop, Bal, Bag, Karung) and wholesale prices for every item
  */
 function getUnitsForBarang(barang) {
-    if (barang.units && barang.units.length > 1) {
+    if (barang && barang.units && barang.units.length > 0) {
         return barang.units;
     }
 
-    const units = [];
-    const baseSatuan = barang.satuan ?? 'Pcs';
-    const basePrice = Number(barang.harga_jual || 0);
-    const nama = (barang.nama_barang || '').toLowerCase();
-    const sat = baseSatuan.toLowerCase();
-
-    units.push({
+    return [{
         level: 1,
-        satuan: baseSatuan,
+        satuan: barang?.satuan ?? 'Pcs',
         faktor: 1,
-        harga_jual: basePrice,
-    });
-
-    if (nama.includes('mild') || nama.includes('rokok') || nama.includes('signature') || sat === 'bks') {
-        units.push({
-            level: 2,
-            satuan: 'Slop (10 bks)',
-            faktor: 10,
-            harga_jual: Math.floor(basePrice * 10 * 0.95),
-        });
-        units.push({
-            level: 3,
-            satuan: 'Bal (200 bks)',
-            faktor: 200,
-            harga_jual: Math.floor(basePrice * 200 * 0.90),
-        });
-    } else if (sat === 'btl' || nama.includes('botol') || nama.includes('teh') || nama.includes('kopi') || nama.includes('air')) {
-        units.push({
-            level: 2,
-            satuan: 'Pack (6 btl)',
-            faktor: 6,
-            harga_jual: Math.floor(basePrice * 6 * 0.95),
-        });
-        units.push({
-            level: 3,
-            satuan: 'Karton (24 btl)',
-            faktor: 24,
-            harga_jual: Math.floor(basePrice * 24 * 0.90),
-        });
-    } else if (sat === 'kg' || nama.includes('beras') || nama.includes('gula') || nama.includes('minyak')) {
-        units.push({
-            level: 2,
-            satuan: 'Bag (5kg)',
-            faktor: 5,
-            harga_jual: Math.floor(basePrice * 5 * 0.95),
-        });
-        units.push({
-            level: 3,
-            satuan: 'Karung (25kg)',
-            faktor: 25,
-            harga_jual: Math.floor(basePrice * 25 * 0.90),
-        });
-    } else {
-        units.push({
-            level: 2,
-            satuan: 'Pack (10 pcs)',
-            faktor: 10,
-            harga_jual: Math.floor(basePrice * 10 * 0.95),
-        });
-        units.push({
-            level: 3,
-            satuan: 'Dus (40 pcs)',
-            faktor: 40,
-            harga_jual: Math.floor(basePrice * 40 * 0.88),
-        });
-    }
-
-    return units;
+        harga_jual: Number(barang?.harga_jual || 0),
+    }];
 }
 
 // ------------------------- HITUNGAN -------------------------
