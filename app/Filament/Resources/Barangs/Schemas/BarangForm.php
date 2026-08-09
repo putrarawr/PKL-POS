@@ -125,7 +125,7 @@ class BarangForm
                     ]),
 
                 Section::make('Tingkatan Satuan & Harga Grosir (Level 2 - 4)')
-                    ->description('Opsional: Atur konversi satuan bertingkat (Pack, Slof, Bal, Dus, dll) & harga khusus. Kosongkan jika produk hanya memiliki 1 satuan.')
+                    ->description('Opsional: Atur konversi satuan bertingkat terhadap Satuan Pertama (Level 1). Kosongkan jika produk hanya memiliki 1 satuan.')
                     ->collapsible()
                     ->columnSpanFull()
                     ->schema([
@@ -137,7 +137,7 @@ class BarangForm
                                         ->label('Nama Satuan Level 2')
                                         ->placeholder('Misal: Pack, Renceng'),
                                     TextInput::make('isi_satuan_2')
-                                        ->label('Isi Konversi (Jumlah Level 1)')
+                                        ->label('Isi Konversi (Jumlah Satuan Pertama / Level 1)')
                                         ->numeric()
                                         ->placeholder('Misal: 20'),
                                     TextInput::make('harga_beli_2')
@@ -161,9 +161,9 @@ class BarangForm
                                         ->label('Nama Satuan Level 3')
                                         ->placeholder('Misal: Slof, Box'),
                                     TextInput::make('isi_satuan_3')
-                                        ->label('Isi Konversi (Jumlah Level 2)')
+                                        ->label('Isi Konversi (Jumlah Satuan Pertama / Level 1)')
                                         ->numeric()
-                                        ->placeholder('Misal: 10'),
+                                        ->placeholder('Misal: 200'),
                                     TextInput::make('harga_beli_3')
                                         ->label('Harga Beli Level 3')
                                         ->numeric()
@@ -185,9 +185,9 @@ class BarangForm
                                         ->label('Nama Satuan Level 4')
                                         ->placeholder('Misal: Bal, Karton'),
                                     TextInput::make('isi_satuan_4')
-                                        ->label('Isi Konversi (Jumlah Level 3)')
+                                        ->label('Isi Konversi (Jumlah Satuan Pertama / Level 1)')
                                         ->numeric()
-                                        ->placeholder('Misal: 10'),
+                                        ->placeholder('Misal: 2000'),
                                     TextInput::make('harga_beli_4')
                                         ->label('Harga Beli Level 4')
                                         ->numeric()

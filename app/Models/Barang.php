@@ -65,7 +65,7 @@ class Barang extends Model
     }
 
     /**
-     * Hitung faktor konversi satuan terhadap Level 1 (Satuan Dasar) secara berantai.
+     * Hitung faktor konversi satuan terhadap Level 1 (Satuan Utama / Pertama).
      */
     public function getFaktorKonversi(?string $namaSatuan): int
     {
@@ -73,20 +73,16 @@ class Barang extends Model
             return 1;
         }
 
-        $isi2 = max(1, (int) ($this->isi_satuan_2 ?? 1));
-        $isi3 = max(1, (int) ($this->isi_satuan_3 ?? 1));
-        $isi4 = max(1, (int) ($this->isi_satuan_4 ?? 1));
-
         if (!empty($this->satuan_2) && $namaSatuan === $this->satuan_2) {
-            return $isi2;
+            return max(1, (int) ($this->isi_satuan_2 ?? 1));
         }
 
         if (!empty($this->satuan_3) && $namaSatuan === $this->satuan_3) {
-            return $isi3 * $isi2;
+            return max(1, (int) ($this->isi_satuan_3 ?? 1));
         }
 
         if (!empty($this->satuan_4) && $namaSatuan === $this->satuan_4) {
-            return $isi4 * $isi3 * $isi2;
+            return max(1, (int) ($this->isi_satuan_4 ?? 1));
         }
 
         return 1;
