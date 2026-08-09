@@ -128,17 +128,32 @@ class StokService
                 $faktor = $barang ? $barang->getFaktorKonversi($detail->satuan) : 1;
                 $jumlahDasar = $detail->jumlah * $faktor;
 
+                if ($barang) {
+                    $hargaBeliUnitMasuk = (float) round($detail->harga / max(1, $faktor));
+                    $stokSebelumnya = (int) DB::table('barang_gudang')
+                        ->where('barang_id', $detail->barang_id)
+                        ->sum('stok');
+
+                    $hppLama = (float) ($barang->hpp ?? $barang->harga_beli ?? 0);
+
+                    if ($stokSebelumnya > 0) {
+                        $hppBaru = (($stokSebelumnya * $hppLama) + ($jumlahDasar * $hargaBeliUnitMasuk)) / ($stokSebelumnya + $jumlahDasar);
+                    } else {
+                        $hppBaru = $hargaBeliUnitMasuk;
+                    }
+
+                    $barang->update([
+                        'harga_beli' => (int) round($hargaBeliUnitMasuk),
+                        'hpp' => round($hppBaru, 2),
+                    ]);
+                }
+
                 $this->tambahStok($detail->barang_id, $pembelian->gudang_id, $jumlahDasar, [
                     'nomer_entry' => $pembelian->nomer_entry,
                     'tanggal' => $pembelian->tanggal,
                     'harga' => $detail->harga,
                     'keterangan' => 'Pembelian dari ' . ($pembelian->supplier->nama_supplier ?? '-') . ($detail->satuan ? " ({$detail->jumlah} {$detail->satuan})" : ''),
                 ]);
-                // harga master Level 1 dihitung proporsional dari harga per-satuan beli
-                if ($barang) {
-                    $hargaBeliDasar = (int) round($detail->harga / max(1, $faktor));
-                    $barang->update(['harga_beli' => $hargaBeliDasar]);
-                }
             }
         });
     }

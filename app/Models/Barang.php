@@ -188,6 +188,22 @@ class Barang extends Model
     }
 
     /**
+     * Dapatkan HPP Average per-satuan (khusus jika terisi, atau perkalian dari Level 1).
+     */
+    public function getHppForSatuan(?string $namaSatuan): int
+    {
+        $baseHpp = (float) ($this->hpp ?? $this->harga_beli);
+
+        if (empty($namaSatuan) || $namaSatuan === $this->satuan) {
+            return (int) round($baseHpp);
+        }
+
+        $faktor = $this->getFaktorKonversi($namaSatuan);
+
+        return (int) round($baseHpp * $faktor);
+    }
+
+    /**
      * Daftar seluruh level satuan aktif yang dimiliki barang ini.
      */
     public function getAvailableUnits(): array
@@ -203,6 +219,7 @@ class Barang extends Model
             'isi_info' => null,
             'harga_jual' => (int) $this->harga_jual,
             'harga_beli' => (int) $this->harga_beli,
+            'hpp' => $this->getHppForSatuan($baseSatuan),
         ];
 
         if (!empty($this->satuan_2)) {
@@ -214,6 +231,7 @@ class Barang extends Model
                 'isi_info' => "1 {$this->satuan_2} = {$isi2} {$baseSatuan}",
                 'harga_jual' => $this->getHargaJualForSatuan($this->satuan_2),
                 'harga_beli' => $this->getHargaBeliForSatuan($this->satuan_2),
+                'hpp' => $this->getHppForSatuan($this->satuan_2),
             ];
         }
 
@@ -231,6 +249,7 @@ class Barang extends Model
                 'isi_info' => $isiStr,
                 'harga_jual' => $this->getHargaJualForSatuan($this->satuan_3),
                 'harga_beli' => $this->getHargaBeliForSatuan($this->satuan_3),
+                'hpp' => $this->getHppForSatuan($this->satuan_3),
             ];
         }
 
@@ -247,6 +266,7 @@ class Barang extends Model
                 'isi_info' => $isiStr,
                 'harga_jual' => $this->getHargaJualForSatuan($this->satuan_4),
                 'harga_beli' => $this->getHargaBeliForSatuan($this->satuan_4),
+                'hpp' => $this->getHppForSatuan($this->satuan_4),
             ];
         }
 

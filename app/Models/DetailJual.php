@@ -18,6 +18,7 @@ class DetailJual extends Model
         'satuan',
         'jumlah',
         'harga',
+        'hpp',
         'diskon',
         'subtotal',
     ];

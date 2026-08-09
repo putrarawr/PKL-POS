@@ -48,10 +48,17 @@ class BarangForm
                                 ->default('Pcs')
                                 ->required(),
                             TextInput::make('harga_beli')
-                                ->label('Harga Beli (Level 1)')
+                                ->label('Harga Beli Terakhir (Level 1)')
                                 ->numeric()
                                 ->required()
                                 ->prefix('Rp')
+                                ->default(0),
+                            TextInput::make('hpp')
+                                ->label('HPP Average (Rata-Rata Tertimbang)')
+                                ->numeric()
+                                ->prefix('Rp')
+                                ->readOnly()
+                                ->helperText('Otomatis dihitung ulang secara akurat saat ada transaksi Pembelian baru.')
                                 ->default(0),
                             TextInput::make('harga_jual')
                                 ->label('Harga Jual Eceran (Level 1)')

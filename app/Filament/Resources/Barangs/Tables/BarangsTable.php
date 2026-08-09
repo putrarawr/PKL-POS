@@ -37,7 +37,11 @@ class BarangsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('harga_beli')
-                    ->label('Harga Beli')
+                    ->label('Beli Terakhir')
+                    ->money('IDR')
+                    ->sortable(),
+                TextColumn::make('hpp')
+                    ->label('HPP')
                     ->money('IDR')
                     ->sortable(),
                 TextColumn::make('harga_jual')

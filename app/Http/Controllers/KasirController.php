@@ -243,11 +243,13 @@ class KasirController extends Controller
 
                 $subtotal = ($hargaSatuan * $d['jumlah']) - $d['diskon'];
                 $total += $subtotal;
+                $hppSatuan = $barang->getHppForSatuan($satuan);
                 $details[] = [
                     'barang' => $barang,
                     'jumlah' => $d['jumlah'],
                     'jumlah_dasar' => $jumlahDasar,
                     'harga' => $hargaSatuan,
+                    'hpp' => $hppSatuan,
                     'diskon' => $d['diskon'],
                     'subtotal' => $subtotal,
                     'satuan' => $satuan,
@@ -290,6 +292,7 @@ class KasirController extends Controller
                     'satuan' => $d['satuan'],
                     'jumlah' => $d['jumlah'],
                     'harga' => $d['harga'],
+                    'hpp' => $d['hpp'],
                     'diskon' => $d['diskon'],
                     'subtotal' => $d['subtotal'],
                 ]);
