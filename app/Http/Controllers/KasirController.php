@@ -231,6 +231,7 @@ class KasirController extends Controller
                 // lockForUpdate biar aman kalau dua kasir jualan barang sama barengan
                 $barang = Barang::lockForUpdate()->findOrFail($d['barang_id']);
                 $satuan = $d['satuan'] ?? $barang->satuan;
+                $hargaAsliSatuan = $barang->getHargaJualForSatuan($satuan);
                 $hargaSatuan = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
                 $faktor = $barang->getFaktorKonversi($satuan);
                 $jumlahDasar = $d['jumlah'] * $faktor;
@@ -241,16 +242,20 @@ class KasirController extends Controller
                     abort(422, "Stok {$barang->nama_barang} di gudang ini tidak cukup (tersedia: {$stokSekarang} {$barang->satuan})");
                 }
 
-                $subtotal = ($hargaSatuan * $d['jumlah']) - $d['diskon'];
+                // Potongan dari harga bertingkat (diskon otomatis barang) dihitung
+                // di server, bukan percaya angka dari browser, biar gak bisa dimanipulasi.
+                $diskonItem = max(0, ($hargaAsliSatuan - $hargaSatuan) * (int) $d['jumlah']);
+                $subtotal = ($hargaAsliSatuan * (int) $d['jumlah']) - $diskonItem;
                 $total += $subtotal;
                 $hppSatuan = $barang->getHppForSatuan($satuan);
                 $details[] = [
                     'barang' => $barang,
                     'jumlah' => $d['jumlah'],
                     'jumlah_dasar' => $jumlahDasar,
-                    'harga' => $hargaSatuan,
+                    'harga' => $hargaAsliSatuan,  // harga normal per satuan (sebelum potongan)
+                    'harga_aktual' => $hargaSatuan, // harga aktual setelah potongan (dipakai kartu stok)
                     'hpp' => $hppSatuan,
-                    'diskon' => $d['diskon'],
+                    'diskon' => $diskonItem,
                     'subtotal' => $subtotal,
                     'satuan' => $satuan,
                 ];
@@ -305,7 +310,7 @@ class KasirController extends Controller
                     konteks: [
                         'nomer_entry' => $nomerNota,
                         'tanggal' => $data['tanggal'],
-                        'harga' => $d['harga'],
+                        'harga' => $d['harga_aktual'],
                         'keterangan' => "Penjualan kasir ({$d['jumlah']} {$d['satuan']})",
                         'jenis' => KartuStok::JENIS_KELUAR,
                     ],

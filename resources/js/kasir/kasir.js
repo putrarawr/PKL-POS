@@ -20,7 +20,8 @@ const state = {
     barang: [],
     jenisBarang: [],
     gudang: [],
-    // keranjang: [{ barang_id, nama_barang, satuan, harga, jumlah, diskon }]
+    // keranjang: [{ barang_id, nama_barang, satuan, harga, harga_asli, jumlah, diskon }]
+    // harga_asli = harga normal per satuan, diskon = potongan rupiah dari harga bertingkat
     cart: [],
     gudangId: null,
     filterJenis: null,
@@ -53,11 +54,26 @@ function getUnitsForBarang(barang) {
 // ------------------------- HITUNGAN -------------------------
 
 function subtotalItem(item) {
-    return item.harga * item.jumlah - item.diskon;
+    return (item.harga_asli ?? item.harga) * item.jumlah - item.diskon;
 }
 
 function totalKotor() {
     return state.cart.reduce((sum, item) => sum + subtotalItem(item), 0);
+}
+
+// Total harga normal (sebelum potongan harga bertingkat) dan total potongan barang
+function totalNormal() {
+    return state.cart.reduce((sum, item) => sum + (item.harga_asli ?? item.harga) * item.jumlah, 0);
+}
+
+function totalPotonganBarang() {
+    return state.cart.reduce((sum, item) => sum + Number(item.diskon || 0), 0);
+}
+
+// Potongan harga bertingkat ditampilkan dalam persen (potongan rupiah / total normal)
+function persenPotongan(potongan, normal) {
+    if (!Number(normal)) return 0;
+    return Math.round((Number(potongan || 0) / Number(normal)) * 100);
 }
 
 function nominalDiskon() {
@@ -138,6 +154,7 @@ function tambahKeCart(barangId) {
             nama_barang: barang.nama_barang,
             satuan: satuanDefault,
             harga: hargaUnit,
+            harga_asli: hargaUnit,
             jumlah: 1,
             diskon: 0,
         });
@@ -283,6 +300,8 @@ async function prosesBayar() {
         total: totalKotor(),
         diskon: nominalDiskon(),
         neto: totalNeto(),
+        subtotal_normal: totalNormal(),
+        potongan_barang: totalPotonganBarang(),
         jenis_pembayaran: state.jenisPembayaran,
         bayar: state.jenisPembayaran === 'tunai' ? state.bayar : totalNeto(),
         kembalian: state.jenisPembayaran === 'tunai' ? kembalian() : 0,
@@ -292,6 +311,7 @@ async function prosesBayar() {
             satuan: i.satuan,
             jumlah: i.jumlah,
             harga: i.harga,
+            harga_asli: i.harga_asli ?? i.harga,
             diskon: i.diskon,
             subtotal: subtotalItem(i),
         })),
@@ -346,14 +366,25 @@ function tampilkanStruk(payload) {
         ? payload.diskon_persen
         : state.diskonTransaksi;
 
+    const subtotalNormal = payload.subtotal_normal
+        ?? payload.details.reduce((s, d) => s + Number(d.harga ?? 0) * Number(d.jumlah || 0), 0);
+    const potonganBarang = payload.potongan_barang
+        ?? payload.details.reduce((s, d) => s + Number(d.diskon || 0), 0);
+    const potonganTransaksi = Number(payload.diskon || 0);
+
     const rows = payload.details
         .map((d) => {
             const nama = d.nama_barang
                 ?? state.barang.find((b) => b.id === d.barang_id)?.nama_barang
                 ?? '-';
+            const hargaUnit = Number(d.harga_asli ?? d.harga ?? 0);
+            const potonganItem = Number(d.diskon || 0);
+            const potonganItemPersen = persenPotongan(potonganItem, hargaUnit * Number(d.jumlah || 0));
             return `<tr>
-                <td class="py-0.5 pr-2">${escapeHtml(nama)}</td>
-                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)} x ${rupiah(d.harga)}</td>
+                <td class="py-0.5 pr-2">${escapeHtml(nama)}
+                    ${potonganItem > 0 ? `<div class="text-[11px] font-bold text-red-500">potongan −${potonganItemPersen}%</div>` : ''}
+                </td>
+                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)} x ${rupiah(hargaUnit)}</td>
                 <td class="py-0.5 pl-2 text-right">${rupiah(d.subtotal)}</td>
             </tr>`;
         })
@@ -379,8 +410,9 @@ function tampilkanStruk(payload) {
             </div>
             <table class="w-full text-sm border-y border-dashed border-zinc-300 py-2 my-2 tabular-nums">${rows}</table>
             <div class="text-sm space-y-2 mt-4 tabular-nums">
-                <div class="flex justify-between text-zinc-500"><span>Subtotal</span><span class="font-semibold text-zinc-900">${rupiah(payload.total)}</span></div>
-                <div class="flex justify-between text-zinc-500"><span>Diskon ${diskonPersen > 0 ? `(${diskonPersen}%)` : ''}</span><span class="font-semibold text-zinc-900">- ${rupiah(payload.diskon)}</span></div>
+                <div class="flex justify-between text-zinc-500"><span>Subtotal</span><span class="font-semibold text-zinc-900">${rupiah(subtotalNormal)}</span></div>
+                ${potonganBarang > 0 ? `<div class="flex justify-between text-zinc-500"><span>Potongan Barang (rata-rata)</span><span class="font-semibold text-red-500">- ${persenPotongan(potonganBarang, subtotalNormal)}%</span></div>` : ''}
+                ${potonganTransaksi > 0 ? `<div class="flex justify-between text-zinc-500"><span>Diskon ${diskonPersen > 0 ? `(${diskonPersen}%)` : ''}</span><span class="font-semibold text-red-500">- ${rupiah(potonganTransaksi)}</span></div>` : ''}
                 <div class="flex justify-between items-baseline border-t border-dashed border-zinc-300 pt-2.5 mt-2.5">
                     <span class="font-bold">Total</span><span class="font-black text-base">${rupiah(payload.neto)}</span>
                 </div>
@@ -532,6 +564,8 @@ function cetakUlangRiwayat(penjualanId) {
         diskon: r.diskon,
         diskon_persen: 0,
         neto: r.neto,
+        subtotal_normal: r.details.reduce((s, d) => s + Number(d.harga || 0) * Number(d.jumlah || 0), 0),
+        potongan_barang: r.details.reduce((s, d) => s + Number(d.diskon || 0), 0),
         jenis_pembayaran: r.jenis_pembayaran,
         bayar: r.bayar,
         kembalian: r.kembalian,
@@ -685,6 +719,8 @@ function updateCartTierPrices() {
         const unitObj = units.find((u) => u.satuan === i.satuan) ?? units[0];
         const basePrice = unitObj ? unitObj.harga_jual : Number(barang.harga_jual || 0);
 
+        i.harga_asli = basePrice;
+
         const faktor = unitObj ? Number(unitObj.faktor || 1) : 1;
         const totalQtyDasar = Number(i.jumlah || 0) * faktor;
 
@@ -716,8 +752,11 @@ function updateCartTierPrices() {
             } else if (tipe === 'nominal') {
                 i.harga = Math.max(0, Math.round(matchedNilai * faktor));
             }
+            // potongan rupiah dari harga bertingkat untuk item ini
+            i.diskon = Math.max(0, Math.round((basePrice - i.harga) * Number(i.jumlah || 0)));
         } else {
             i.harga = basePrice;
+            i.diskon = 0;
         }
     });
 }
@@ -801,7 +840,7 @@ function renderCart() {
                             ${i.jumlah} ${selectedUnitObj.satuan} × ${rupiah(currentHarga)}
                         </span>
                         ${Number(i.diskon || 0) > 0
-                            ? `<span class="text-[11px] text-red-500 tabular-nums font-semibold">diskon −${rupiah(i.diskon)}</span>`
+                            ? `<span class="text-[11px] text-red-500 tabular-nums font-semibold">diskon −${persenPotongan(i.diskon, (i.harga_asli ?? i.harga) * i.jumlah)}%</span>`
                             : `<span class="text-[11px] text-zinc-300 font-semibold">${rupiah(subtotalItem(i))}</span>`}
                     </div>
                 </div>`;
@@ -1483,6 +1522,8 @@ async function init() {
             total: totalKotor(),
             diskon: nominalDiskon(),
             neto: totalNeto(),
+            subtotal_normal: totalNormal(),
+            potongan_barang: totalPotonganBarang(),
             jenis_pembayaran: state.jenisPembayaran,
             bayar: state.jenisPembayaran === 'tunai' ? state.bayar : totalNeto(),
             kembalian: state.jenisPembayaran === 'tunai' ? kembalian() : 0,

@@ -63,6 +63,8 @@ class HargaBertingkatTest extends TestCase
 
     public function test_kasir_menggunakan_harga_tier_saat_transaksi()
     {
+        $this->withoutMiddleware();
+
         $user = User::factory()->create();
         $gudang = Gudang::create(['nama_gudang' => 'Gudang Utama', 'alamat' => 'Pusat']);
         $jenis = JenisBarang::create(['nama_jenis' => 'Snack', 'kode_jenis' => 'SNK', 'deskripsi' => 'Snack']);
@@ -101,6 +103,57 @@ class HargaBertingkatTest extends TestCase
         $response->assertOk();
         $this->assertDatabaseHas('penjualan', [
             'total' => 45000, // 10 pcs * 4500
+        ]);
+    }
+
+    public function test_detail_jual_mencatat_potongan_harga_tier()
+    {
+        $this->withoutMiddleware();
+
+        $user = User::factory()->create();
+        $gudang = Gudang::create(['nama_gudang' => 'Gudang Utama', 'alamat' => 'Pusat']);
+        $jenis = JenisBarang::create(['nama_jenis' => 'Snack', 'kode_jenis' => 'SNK', 'deskripsi' => 'Snack']);
+
+        $barang = Barang::create([
+            'jenis_barang_id' => $jenis->id,
+            'nama_barang' => 'Chiki',
+            'harga_beli' => 4000,
+            'harga_jual' => 5000,
+            'satuan' => 'Pcs',
+            'tipe_harga_bertingkat' => 'persen',
+            'min_qty_1' => 1,
+            'nilai_tier_1' => 0,
+            'min_qty_2' => 10,
+            'nilai_tier_2' => 10, // harga 4500 per pcs
+        ]);
+
+        $barang->gudangs()->attach($gudang->id, ['stok' => 50]);
+
+        $this->actingAs($user)->postJson(route('kasir.simpan'), [
+            'gudang_id' => $gudang->id,
+            'tanggal' => date('Y-m-d'),
+            'diskon' => 0,
+            'jenis_pembayaran' => 'tunai',
+            'bayar' => 50000,
+            'details' => [
+                [
+                    'barang_id' => $barang->id,
+                    'jumlah' => 10,
+                    'diskon' => 0,
+                    'satuan' => 'Pcs',
+                ],
+            ],
+        ])->assertOk();
+
+        // harga normal disimpan, potongan dari harga bertingkat dicatat di detail_jual
+        $this->assertDatabaseHas('detail_jual', [
+            'harga' => 5000,   // harga normal per satuan
+            'diskon' => 5000,  // potongan tier: 10 pcs x (5000 - 4500)
+            'subtotal' => 45000,
+        ]);
+
+        $this->assertDatabaseHas('penjualan', [
+            'total' => 45000,
         ]);
     }
 }
