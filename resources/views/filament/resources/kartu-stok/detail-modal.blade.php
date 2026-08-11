@@ -14,7 +14,12 @@
         </div>
         <div>
             <p style="font-size:10px;color:#71717a;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Nama Barang</p>
-            <p style="font-size:13px;font-weight:700;color:#fafafa">{{ $record->barang->nama_barang ?? '-' }}</p>
+            <p style="font-size:13px;font-weight:700;color:#fafafa">
+                {{ $record->barang->nama_barang ?? '-' }}
+                @if(!empty($record->barang?->nomer_seri))
+                    <span style="font-size:11px;color:#a1a1aa;font-weight:500">({{ $record->barang->nomer_seri }})</span>
+                @endif
+            </p>
         </div>
         <div>
             <p style="font-size:10px;color:#71717a;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">Gudang</p>
