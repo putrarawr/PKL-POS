@@ -298,6 +298,7 @@ async function prosesBayar() {
         gudang_id: state.gudangId,
         tanggal: tanggalHariIni(),
         total: totalKotor(),
+        diskon_persen: state.diskonTransaksi,
         diskon: nominalDiskon(),
         neto: totalNeto(),
         subtotal_normal: totalNormal(),
@@ -325,7 +326,7 @@ async function prosesBayar() {
 
     try {
         const saved = await simpanPenjualan(payload);
-        tampilkanStruk({ ...payload, nomer_nota: saved.nomer_nota, kembalian: saved.kembalian ?? payload.kembalian });
+        tampilkanStruk({ ...payload, nomer_nota: saved.nomer_nota, kembalian: saved.kembalian ?? payload.kembalian, bank_transfer: state.bankTransfer });
         for (const d of payload.details) {
             const b = state.barang.find((x) => x.id === d.barang_id);
             const units = b ? getUnitsForBarang(b) : [];
@@ -392,7 +393,7 @@ function tampilkanStruk(payload) {
 
     const labelBayar =
         payload.jenis_pembayaran === 'transfer'
-            ? `transfer ${state.bankTransfer}`
+            ? (payload.bank_transfer ? `transfer ${payload.bank_transfer}` : 'Transfer')
             : payload.jenis_pembayaran;
 
     const namaKasir = payload.nama_kasir
@@ -548,6 +549,27 @@ function bukaModalRiwayat() {
 
 function tutupModalRiwayat() {
     document.getElementById('modal-riwayat')?.classList.add('hidden');
+}
+
+async function muatUlangData() {
+    try {
+        const [barang, jenis, gudang] = await Promise.all([
+            getBarang(),
+            getJenisBarang(),
+            getGudang(),
+        ]);
+        state.barang = barang;
+        state.jenisBarang = jenis;
+        state.gudang = gudang;
+        if (!state.gudangId || !gudang.some((g) => g.id === state.gudangId)) {
+            state.gudangId = gudang[0]?.id ?? null;
+            if (gudangSetValue) gudangSetValue(state.gudangId);
+        }
+        render();
+        toast('Data produk & stok diperbarui');
+    } catch (err) {
+        toast(err.message ?? 'Gagal memuat ulang data', true);
+    }
 }
 
 function cetakUlangRiwayat(penjualanId) {
@@ -1071,6 +1093,12 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
     renderMenu();
     return {
         close,
+        open: () => {
+            menu.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+            const first = menu.querySelector('[data-dd-val]');
+            if (first) first.focus();
+        },
         setValue: (val) => {
             current = val;
             renderMenu();
@@ -1087,6 +1115,12 @@ document.addEventListener('click', () => {
 function bukaModalReset() {
     const modal = document.getElementById('modal-konfirmasi-reset');
     if (!modal) return;
+    const jumlahJenis = state.cart.length;
+    const jumlahItem = state.cart.reduce((n, i) => n + i.jumlah, 0);
+    const label = document.getElementById('label-reset-count');
+    if (label) {
+        label.textContent = `${jumlahJenis} jenis barang (${jumlahItem} item)`;
+    }
     modal.classList.remove('hidden');
     document.getElementById('btn-batal-reset')?.focus();
 }
@@ -1094,6 +1128,25 @@ function bukaModalReset() {
 function tutupModalReset() {
     document.getElementById('modal-konfirmasi-reset')?.classList.add('hidden');
     document.getElementById('input-search')?.focus();
+}
+
+function pasangFocusTrap(modal) {
+    if (!modal) return;
+    modal.addEventListener('keydown', (e) => {
+        if (e.key !== 'Tab' || modal.classList.contains('hidden')) return;
+        const focusables = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const list = Array.from(focusables).filter((el) => !el.disabled && el.offsetParent !== null);
+        if (list.length === 0) return;
+        const first = list[0];
+        const last = list[list.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
 }
 
 // ------------------------- INIT -------------------------
@@ -1112,30 +1165,31 @@ async function init() {
     let pendingGudangId = null;
 
     // dropdown gudang (custom) dengan konfirmasi jika keranjang tidak kosong
-    gudangSetValue = setupDropdown(
-        'dd-gudang',
-        gudang.map((g) => ({ value: g.id, label: g.nama_gudang })),
-        state.gudangId,
-        (val) => {
-            const nextGudangId = Number(val);
-            if (nextGudangId === state.gudangId) return;
+    const ddGudang = setupDropdown(
+    'dd-gudang',
+    gudang.map((g) => ({ value: g.id, label: g.nama_gudang })),
+    state.gudangId,
+    (val) => {
+        const nextGudangId = Number(val);
+        if (nextGudangId === state.gudangId) return;
 
-            if (state.cart.length > 0) {
-                pendingGudangId = nextGudangId;
-                const targetGudang = state.gudang.find((g) => g.id === nextGudangId);
-                const nameEl = document.getElementById('target-nama-gudang');
-                if (nameEl) nameEl.textContent = targetGudang?.nama_gudang ?? 'gudang baru';
-                document.getElementById('modal-konfirmasi-gudang')?.classList.remove('hidden');
-            } else {
-                state.gudangId = nextGudangId;
-                state.cart = [];
-                highlightedIdx = -1;
-                render();
-                const input = document.getElementById('input-search');
-                if (input) input.focus();
-            }
+        if (state.cart.length > 0) {
+            pendingGudangId = nextGudangId;
+            const targetGudang = state.gudang.find((g) => g.id === nextGudangId);
+            const nameEl = document.getElementById('target-nama-gudang');
+            if (nameEl) nameEl.textContent = targetGudang?.nama_gudang ?? 'gudang baru';
+            document.getElementById('modal-konfirmasi-gudang')?.classList.remove('hidden');
+        } else {
+            state.gudangId = nextGudangId;
+            state.cart = [];
+            highlightedIdx = -1;
+            render();
+            const input = document.getElementById('input-search');
+            if (input) input.focus();
         }
-    ).setValue;
+    }
+);
+gudangSetValue = ddGudang.setValue;
 
     // Modal Konfirmasi Gudang
     document.getElementById('btn-batal-gudang')?.addEventListener('click', () => {
@@ -1156,6 +1210,17 @@ async function init() {
             pendingGudangId = null;
             const input = document.getElementById('input-search');
             if (input) input.focus();
+        }
+    });
+
+    const modalGudang = document.getElementById('modal-konfirmasi-gudang');
+    modalGudang?.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const batal = document.getElementById('btn-batal-gudang');
+            const konfirmasi = document.getElementById('btn-konfirmasi-gudang');
+            e.preventDefault();
+            if (document.activeElement === batal) konfirmasi?.focus();
+            else batal?.focus();
         }
     });
 
@@ -1231,6 +1296,7 @@ async function init() {
         });
         if (adaModalTerbuka) return;
         if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
+        if (e.key === ' ') return;
         const tag = document.activeElement?.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (document.activeElement?.isContentEditable) return;
@@ -1385,14 +1451,22 @@ async function init() {
             }
         });
 
-        cartItems.addEventListener('change', (e) => {
-            const qty = e.target.closest('[data-qty]');
-            if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
-        });
-
         cartItems.addEventListener('input', (e) => {
             const qty = e.target.closest('[data-qty]');
-            if (qty) setJumlah(Number(qty.dataset.qty), qty.value);
+            if (!qty) return;
+            const id = qty.dataset.qty;
+            const raw = qty.value;
+            const parsed = Math.floor(Number(raw));
+            if (raw === '') return;
+            if (!Number.isFinite(parsed) || parsed <= 0) {
+                const item = state.cart.find((i) => i.barang_id === Number(id));
+                qty.value = item ? String(item.jumlah) : '';
+                qty.focus();
+                return;
+            }
+            setJumlah(Number(id), raw);
+            const fresh = document.querySelector(`[data-qty="${id}"]`);
+            if (fresh && fresh !== e.target) fresh.focus();
         });
 
         cartItems.addEventListener('keydown', (e) => {
@@ -1527,6 +1601,7 @@ async function init() {
             jenis_pembayaran: state.jenisPembayaran,
             bayar: state.jenisPembayaran === 'tunai' ? state.bayar : totalNeto(),
             kembalian: state.jenisPembayaran === 'tunai' ? kembalian() : 0,
+            bank_transfer: state.jenisPembayaran === 'transfer' ? state.bankTransfer : null,
             nomer_nota: 'Preview',
             details: state.cart.map((i) => ({ ...i, subtotal: subtotalItem(i) })),
         };
@@ -1534,12 +1609,17 @@ async function init() {
     });
 
     document.getElementById('btn-reset')?.addEventListener('click', () => {
-        if (state.cart.length > 0) bukaModalReset();
+        if (state.cart.length > 0) {
+            bukaModalReset();
+        } else {
+            toast('Keranjang masih kosong', true);
+        }
     });
     document.getElementById('btn-batal-reset')?.addEventListener('click', tutupModalReset);
     document.getElementById('btn-konfirmasi-reset')?.addEventListener('click', () => {
         tutupModalReset();
         resetTransaksi();
+        toast('Pesanan dikosongkan');
     });
 
     const modalReset = document.getElementById('modal-konfirmasi-reset');
@@ -1618,6 +1698,12 @@ async function init() {
                 fokusCartRow();
                 return;
             }
+            const ddTerbuka = document.querySelector('[data-dd-menu]:not(.hidden), [data-custom-dd-menu]:not(.hidden)');
+            if (ddTerbuka) {
+                document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu]').forEach((m) => m.classList.add('hidden'));
+                document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
+                return;
+            }
             const urutanModal = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-riwayat'];
             const terbuka = urutanModal.find((id) => {
                 const el = document.getElementById(id);
@@ -1631,6 +1717,13 @@ async function init() {
                 document.getElementById(terbuka)?.classList.add('hidden');
                 document.getElementById('input-search')?.focus();
                 return;
+            }
+            if (state.search !== '') {
+                state.search = '';
+                const inp = document.getElementById('input-search');
+                if (inp) inp.value = '';
+                const clear = document.getElementById('btn-clear-search');
+                if (clear) clear.classList.add('hidden');
             }
             highlightedIdx = -1;
             cartIdx = -1;
@@ -1676,8 +1769,8 @@ async function init() {
             }
             const isTypingChar = e.key.length === 1 && !mod && !e.altKey;
             const isAppShortcut =
-                (mod && !e.altKey && ['k', 'u', 'p', '1', '2', '3', 'enter', 'arrowdown', 'arrowup'].includes(e.key.toLowerCase())) ||
-                e.key === 'F9';
+                (mod && !e.altKey && ['enter', 'arrowdown', 'arrowup'].includes(e.key.toLowerCase())) ||
+                ['F2', 'F3', 'F4', 'F6', 'F7', 'F8', 'F9'].includes(e.key);
             if ((isTypingChar && !inInput) || isAppShortcut) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -1690,6 +1783,66 @@ async function init() {
             return el && !el.classList.contains('hidden');
         });
         if (modalLainTerbuka) return;
+
+        if (e.key === 'F2') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const input = document.getElementById('input-search');
+            if (input) {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+            return;
+        }
+
+        if (e.key === 'F3') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            bukaModalRiwayat();
+            return;
+        }
+
+        if (e.key === 'F4') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const urutan = ['tunai', 'qris', 'transfer'];
+            const idx = urutan.indexOf(state.jenisPembayaran);
+            state.jenisPembayaran = urutan[(idx + 1) % urutan.length];
+            state.bayar = 0;
+            document.querySelectorAll('input[name="jenis_pembayaran"]').forEach((radio) => {
+                radio.checked = radio.value === state.jenisPembayaran;
+            });
+            if (!state.paymentExpanded) togglePaymentDetails(true);
+            renderCart();
+            return;
+        }
+
+        if (e.key === 'F6') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            togglePaymentDetails();
+            return;
+        }
+
+        if (e.key === 'F7') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (state.cart.length === 0) {
+                toast('Keranjang masih kosong', true);
+                return;
+            }
+            if (!state.paymentExpanded) togglePaymentDetails(true);
+            state.bayar = totalNeto();
+            renderCart();
+            return;
+        }
+
+        if (e.key === 'F8') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            muatUlangData();
+            return;
+        }
 
         if (e.key === 'F9') {
             e.preventDefault();
@@ -1728,53 +1881,10 @@ async function init() {
             return;
         }
 
-        if (mod && !e.altKey && e.key.toLowerCase() === 'k') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            const input = document.getElementById('input-search');
-            if (input) {
-                input.focus();
-                input.setSelectionRange(input.value.length, input.value.length);
-            }
-            return;
-        }
-
         if (mod && !e.altKey && e.key === 'Enter') {
             e.preventDefault();
             e.stopImmediatePropagation();
             prosesBayar();
-            return;
-        }
-
-        if (mod && !e.altKey && e.key.toLowerCase() === 'u') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            if (state.cart.length === 0) {
-                toast('Keranjang masih kosong', true);
-                return;
-            }
-            if (!state.paymentExpanded) togglePaymentDetails(true);
-            state.bayar = totalNeto();
-            renderCart();
-            return;
-        }
-
-        if (mod && !e.altKey && e.key.toLowerCase() === 'p') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            togglePaymentDetails();
-            return;
-        }
-
-        if (mod && !e.altKey && (e.key === '1' || e.key === '2' || e.key === '3')) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            const mapPembayaran = { '1': 'tunai', '2': 'qris', '3': 'transfer' };
-            state.jenisPembayaran = mapPembayaran[e.key];
-            document.querySelectorAll('input[name="jenis_pembayaran"]').forEach((radio) => {
-                radio.checked = radio.value === state.jenisPembayaran;
-            });
-            renderCart();
             return;
         }
     }, true);
@@ -1782,6 +1892,10 @@ async function init() {
     if (USE_MOCK) {
         document.getElementById('badge-mock')?.classList.remove('hidden');
     }
+
+    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang'].forEach((id) => {
+        pasangFocusTrap(document.getElementById(id));
+    });
 
     document.getElementById('loading')?.classList.add('hidden');
     document.getElementById('kasir-app')?.classList.remove('hidden');

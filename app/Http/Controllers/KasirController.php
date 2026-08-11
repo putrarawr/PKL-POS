@@ -165,7 +165,7 @@ class KasirController extends Controller
         $limit = max(1, min((int) $request->query('limit', 50), 200));
         $offset = max(0, (int) $request->query('offset', 0));
 
-        $penjualan = Penjualan::with(['details.barang', 'gudang'])
+        $penjualan = Penjualan::with(['details.barang', 'gudang', 'karyawan', 'user'])
             ->whereDate('tanggal', $tanggal)
             ->orderByDesc('id')
             ->offset($offset)
@@ -212,6 +212,7 @@ class KasirController extends Controller
             'gudang_id' => ['required', 'integer', 'exists:gudang,id'],
             'tanggal' => ['required', 'date'],
             'diskon' => ['required', 'integer', 'min:0'],
+            'diskon_persen' => ['nullable', 'integer', 'min:0', 'max:100'],
             'jenis_pembayaran' => ['required', 'in:tunai,qris,transfer'],
             'bayar' => ['required', 'integer', 'min:0'],
             'details' => ['required', 'array', 'min:1'],
@@ -261,7 +262,10 @@ class KasirController extends Controller
                 ];
             }
 
-            $neto = max(0, $total - $data['diskon']);
+            // diskon transaksi dihitung ulang dari persen agar tidak bisa dimanipulasi
+            // dari browser (nominal 'diskon' yang dikirim klien diabaikan).
+            $diskonNominal = (int) floor($total * (int) ($data['diskon_persen'] ?? 0) / 100);
+            $neto = max(0, $total - $diskonNominal);
             if ($data['jenis_pembayaran'] === 'tunai' && $data['bayar'] < $neto) {
                 abort(422, 'Uang bayar kurang dari total');
             }
@@ -282,7 +286,7 @@ class KasirController extends Controller
                 'gudang_id' => $gudangId,
                 'tanggal' => $data['tanggal'],
                 'total' => $total,
-                'diskon' => $data['diskon'],
+                'diskon' => $diskonNominal,
                 'neto' => $neto,
                 'jenis_pembayaran' => $data['jenis_pembayaran'],
                 'bayar' => $bayar,

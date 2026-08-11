@@ -318,7 +318,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Kosongkan Pesanan?</h3>
-                <p class="text-sm text-zinc-500 mt-2">Semua item di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
+                <p class="text-sm text-zinc-500 mt-2"><span id="label-reset-count" class="font-bold text-zinc-900"></span> di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
             <div class="flex gap-2.5 mt-7">
                 <button id="btn-batal-reset" type="button"
@@ -372,7 +372,15 @@
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
                     <span class="text-sm text-zinc-600">Cari barang</span>
-                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">K</kbd></span>
+                    <kbd class="kbd-shortcut">F2</kbd>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Buka riwayat transaksi</span>
+                    <kbd class="kbd-shortcut">F3</kbd>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-2.5">
+                    <span class="text-sm text-zinc-600">Siklus metode pembayaran</span>
+                    <kbd class="kbd-shortcut">F4</kbd>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
                     <span class="text-sm text-zinc-600">Navigasi daftar barang</span>
@@ -412,15 +420,15 @@
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
                     <span class="text-sm text-zinc-600">Uang pas</span>
-                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">U</kbd></span>
+                    <kbd class="kbd-shortcut">F7</kbd>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
                     <span class="text-sm text-zinc-600">Rincian pembayaran</span>
-                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">P</kbd></span>
+                    <kbd class="kbd-shortcut">F6</kbd>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
-                    <span class="text-sm text-zinc-600">Metode: Tunai / QRIS / Transfer</span>
-                    <span class="flex items-center gap-1"><kbd class="kbd-shortcut">Ctrl</kbd><span class="text-xs text-zinc-300 font-semibold">+</span><kbd class="kbd-shortcut">1</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">2</kbd><span class="text-xs text-zinc-300 font-semibold">/</span><kbd class="kbd-shortcut">3</kbd></span>
+                    <span class="text-sm text-zinc-600">Muat ulang data & stok</span>
+                    <kbd class="kbd-shortcut">F8</kbd>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-2.5">
                     <span class="text-sm text-zinc-600">Kosongkan pesanan</span>
