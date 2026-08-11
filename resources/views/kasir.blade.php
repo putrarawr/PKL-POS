@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Kasir - Toko PKL</title>
+    <title>Kasir - {{ $kasirData['toko']['nama'] ?? 'Toko PKL' }}</title>
     <link rel="preconnect" href="https://api.fontshare.com">
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
     @isset($kasirData)
@@ -94,7 +94,7 @@
                 <div class="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-sm select-none">K</div>
                 <div class="leading-tight">
                     <h1 class="text-sm font-bold tracking-tight">Kasir</h1>
-                    <p class="text-[11px] font-medium text-zinc-400">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif Toko PKL</p>
+                    <p class="text-[11px] font-medium text-zinc-400">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif {{ $kasirData['toko']['nama'] ?? 'Toko PKL' }}</p>
                 </div>
             </div>
 
@@ -329,6 +329,27 @@
         </div>
     </div>
 
+    {{-- MODAL KONFIRMASI HAPUS ITEM --}}
+    <div id="modal-konfirmasi-hapus" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-zinc-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/><path d="M8 6v-2a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2l-1-14"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Hapus Item Ini?</h3>
+                <p class="text-sm text-zinc-500 mt-2"><span id="label-hapus-item" class="font-bold text-zinc-900"></span> akan dihapus dari pesanan.</p>
+            </div>
+            <div class="flex gap-2.5 mt-7">
+                <button id="btn-batal-hapus" type="button"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                <button id="btn-konfirmasi-hapus" type="button"
+                    class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
     {{-- MODAL KONFIRMASI PINDAH GUDANG --}}
     <div id="modal-konfirmasi-gudang" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
         <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
@@ -467,6 +488,10 @@
                     class="flex-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 bg-white focus:outline-none focus:border-zinc-900 transition-colors cursor-pointer tabular-nums">
                 <button id="btn-riwayat-hari-ini" type="button"
                     class="shrink-0 px-4 py-2 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:border-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer">Hari Ini</button>
+            </div>
+            <div id="riwayat-summary" class="hidden shrink-0 flex items-center justify-between px-6 py-2.5 border-b border-zinc-100 text-xs">
+                <span id="riwayat-summary-jumlah" class="font-bold text-zinc-500"></span>
+                <span id="riwayat-summary-total" class="font-black text-zinc-900 tabular-nums"></span>
             </div>
             <div id="riwayat-pemuatan" class="px-6 py-12 text-center text-sm font-semibold text-zinc-400">Memuat riwayat…</div>
             <div id="riwayat-list" class="hidden flex-1 overflow-y-auto px-4 py-3 divide-y divide-zinc-100"></div>

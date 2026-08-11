@@ -120,6 +120,7 @@ class KasirController extends Controller
                 ]),
                 'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
                 'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
+                'toko' => config('toko'),
             ],
         ]);
     }
@@ -149,6 +150,7 @@ class KasirController extends Controller
             ]),
             'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
             'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
+            'toko' => config('toko'),
         ])
         ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
         ->header('Pragma', 'no-cache')
@@ -163,16 +165,20 @@ class KasirController extends Controller
     {
         $tanggal = $request->query('tanggal', now()->toDateString());
         $limit = max(1, min((int) $request->query('limit', 50), 200));
-        $offset = max(0, (int) $request->query('offset', 0));
+        $before = $request->query('before');
 
         $penjualan = Penjualan::with(['details.barang', 'gudang', 'karyawan', 'user'])
             ->whereDate('tanggal', $tanggal)
+            ->when($before !== null && (int) $before > 0, fn ($q) => $q->where('id', '<', (int) $before))
             ->orderByDesc('id')
-            ->offset($offset)
             ->limit($limit)
             ->get();
 
-        return response()->json($penjualan->map(fn ($p) => [
+        $summary = Penjualan::whereDate('tanggal', $tanggal)
+            ->selectRaw('count(*) as jumlah, coalesce(sum(neto), 0) as total_neto')
+            ->first();
+
+        $items = $penjualan->map(fn ($p) => [
             'id' => $p->id,
             'nomer_nota' => $p->nomer_nota,
             'tanggal' => (string) $p->tanggal,
@@ -198,7 +204,15 @@ class KasirController extends Controller
                 'diskon' => (int) $d->diskon,
                 'subtotal' => (int) $d->subtotal,
             ]),
-        ]));
+        ]);
+
+        return response()->json([
+            'items' => $items,
+            'summary' => [
+                'jumlah' => (int) ($summary->jumlah ?? 0),
+                'total_neto' => (int) ($summary->total_neto ?? 0),
+            ],
+        ]);
     }
 
     /**
