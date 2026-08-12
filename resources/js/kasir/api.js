@@ -5,7 +5,7 @@
 // tau datanya dari mana.
 //
 // CARA KERJANYA SEKARANG:
-//   - Data awal (barang, gudang, customer, jenis) DISUNTIK dari
+//   - Data awal (barang, gudang, jenis) DISUNTIK dari
 //     KasirController lewat window.KASIR_DATA di kasir.blade.php.
 //     Gak ada fetch GET sama sekali.
 //   - Simpan transaksi = POST ke route web biasa (/kasir/simpan),
@@ -35,11 +35,6 @@ const mockData = {
     gudang: [
         { id: 1, nama_gudang: 'Gudang Utama', alamat: 'Jl. Raya No. 1' },
         { id: 2, nama_gudang: 'Rak Toko Depan', alamat: 'Area kasir' },
-    ],
-    customers: [
-        { id_customer: 1, nama_customer: 'Umum', no_telp: '-' },
-        { id_customer: 2, nama_customer: 'Budi Santoso', no_telp: '081234567890' },
-        { id_customer: 3, nama_customer: 'Siti Aminah', no_telp: '089876543210' },
     ],
     // stok = { [gudang_id]: jumlah }, sama kayak pivot barang_gudang
     barang: [
@@ -131,7 +126,7 @@ export async function getRiwayat(tanggal, { limit, before } = {}) {
 /**
  * Simpan transaksi kasir → POST /kasir/simpan (route web biasa, bukan API).
  *
- * Yang dipakai server cuma: customer_id, gudang_id, tanggal, diskon,
+ * Yang dipakai server cuma: gudang_id, tanggal, diskon,
  * jenis_pembayaran, bayar, dan details[{barang_id, jumlah, diskon, satuan}].
  * Harga, subtotal, total, dan nomer nota DIHITUNG ULANG di server
  * (KasirController@simpan) biar gak bisa dimanipulasi dari browser.
@@ -163,7 +158,7 @@ export async function simpanPenjualan(payload) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message ?? `Gagal menyimpan (${res.status})`);
     }
-    return res.json(); // berisi nomer_nota resmi dari server
+    return res.json();
 }
 
 /** Nomer nota sementara buat mode mock. Kalau nyambung server, server yang bikin. */

@@ -350,7 +350,8 @@ async function prosesBayar() {
 
     try {
         const saved = await simpanPenjualan(payload);
-        tampilkanStruk({ ...payload, nomer_nota: saved.nomer_nota, kembalian: saved.kembalian ?? payload.kembalian, bank_transfer: state.bankTransfer });
+        tampilkanStruk({ ...payload, nomer_nota: saved.nomer_nota, kembalian: saved.kembalian ?? payload.kembalian, jam: formatJamWib(saved.created_at), bank_transfer: state.bankTransfer });
+        muatRingkasanHari();
         for (const d of payload.details) {
             const b = state.barang.find((x) => x.id === d.barang_id);
             const units = b ? getUnitsForBarang(b) : [];
@@ -435,7 +436,7 @@ function tampilkanStruk(payload) {
                 ${toko.alamat ? `<p class="text-xs text-zinc-400 mt-0.5">${escapeHtml(toko.alamat)}</p>` : ''}
                 ${toko.kontak ? `<p class="text-xs text-zinc-400">${escapeHtml(toko.kontak)}</p>` : ''}
                 <p class="text-xs text-zinc-400 mt-1">${escapeHtml(gudangNama)}</p>
-                <p class="text-xs text-zinc-400">${escapeHtml(payload.nomer_nota)} &middot; ${payload.tanggal}</p>
+                <p class="text-xs text-zinc-400">${escapeHtml(payload.nomer_nota)} &middot; ${payload.tanggal}${payload.jam ? ` &middot; ${escapeHtml(payload.jam)}` : ''}</p>
                 <p class="text-xs font-semibold text-zinc-600 mt-0.5">Kasir: ${escapeHtml(namaKasir)}</p>
             </div>
             <table class="w-full text-sm border-y border-dashed border-zinc-300 py-2 my-2 tabular-nums">${rows}</table>
@@ -449,7 +450,8 @@ function tampilkanStruk(payload) {
                 <div class="flex justify-between text-zinc-500"><span>Bayar (${labelBayar})</span><span class="font-semibold text-zinc-900">${rupiah(payload.bayar)}</span></div>
                 <div class="flex justify-between text-zinc-500"><span>Kembalian</span><span class="font-semibold text-zinc-900">${rupiah(payload.kembalian)}</span></div>
             </div>
-            <p class="text-center text-xs font-medium text-zinc-400 mt-6">Terima kasih atas kunjungan Anda</p>
+            <p class="text-center text-[11px] text-zinc-500 mt-4 px-4 break-words">Terbilang: ${terbilang(payload.neto)}</p>
+            <p class="text-center text-xs font-medium text-zinc-400 mt-2">Terima kasih atas kunjungan Anda</p>
         `;
     }
     document.getElementById('modal-struk')?.classList.remove('hidden');
@@ -467,6 +469,101 @@ function formatTanggalRupiah(tgl) {
 
 function tanggalHariIni() {
     return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date());
+}
+
+function formatJamWib(value) {
+    const d = value ? new Date(value) : new Date();
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(d);
+}
+
+function updateJamHeader() {
+    const elWaktu = document.getElementById('jam-header-time');
+    const elTanggal = document.getElementById('jam-header-date');
+    if (!elWaktu && !elTanggal) return;
+    const now = new Date();
+    const waktu = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).format(now);
+    const tanggal = new Intl.DateTimeFormat('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    }).format(now);
+    if (elWaktu) elWaktu.textContent = waktu;
+    if (elTanggal) elTanggal.textContent = tanggal;
+}
+
+async function muatRingkasanHari() {
+    const elTotal = document.getElementById('omzet-hari-ini-total');
+    const elLabel = document.getElementById('omzet-hari-ini-label');
+    if (!elTotal && !elLabel) return;
+    try {
+        const res = await getRiwayat(tanggalHariIni(), { limit: 1 });
+        const s = res?.summary ?? { jumlah: 0, total_neto: 0 };
+        if (elTotal) elTotal.textContent = rupiah(s.total_neto ?? 0);
+        if (elLabel) elLabel.textContent = `${s.jumlah ?? 0} transaksi hari ini`;
+    } catch (e) {
+        // abaikan, biarkan tampilan default
+    }
+}
+
+const ANGKA_SATUAN = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
+
+function terbilang(n) {
+    n = Math.floor(Number(n) || 0);
+    if (n === 0) return 'nol rupiah';
+
+    const skala = [
+        [1e12, 'triliun'],
+        [1e9, 'miliar'],
+        [1e6, 'juta'],
+        [1e3, 'ribu'],
+        [1, ''],
+    ];
+
+    const sebutBawah100 = (x) => {
+        if (x >= 100) {
+            const r = Math.floor(x / 100);
+            const s = x % 100;
+            let t = r === 1 ? 'seratus' : `${ANGKA_SATUAN[r]} ratus`;
+            if (s > 0) t += ' ' + sebutBawah100(s);
+            return t;
+        }
+        if (x >= 20) {
+            const p = Math.floor(x / 10);
+            const s = x % 10;
+            return `${ANGKA_SATUAN[p]} puluh${s > 0 ? ' ' + ANGKA_SATUAN[s] : ''}`;
+        }
+        if (x === 10) return 'sepuluh';
+        if (x === 11) return 'sebelas';
+        if (x >= 12 && x < 20) return `${ANGKA_SATUAN[x - 10]} belas`;
+        return ANGKA_SATUAN[x] || '';
+    };
+
+    const hasil = [];
+    for (const [nilai, nama] of skala) {
+        if (n >= nilai) {
+            const part = Math.floor(n / nilai);
+            n %= nilai;
+            const teks = nilai === 1000 && part === 1
+                ? 'seribu'
+                : sebutBawah100(part) + (nama ? ' ' + nama : '');
+            hasil.push(teks);
+        }
+    }
+    return hasil.join(' ') + ' rupiah';
 }
 
 let riwayatTanggalAktif = null;
@@ -661,6 +758,7 @@ function cetakUlangRiwayat(penjualanId) {
         kembalian: r.kembalian,
         nomer_nota: r.nomer_nota,
         nama_kasir: r.nama_kasir,
+        jam: r.jam,
         details: r.details.map((d) => ({
             barang_id: null,
             nama_barang: d.nama_barang,
@@ -939,10 +1037,15 @@ function renderCart() {
     }
 
     const badge = document.getElementById('badge-cart-count');
+    const badgeFloat = document.getElementById('badge-cart-float');
     const totalItem = state.cart.reduce((n, i) => n + i.jumlah, 0);
     if (badge) {
         badge.classList.toggle('hidden', totalItem === 0);
         badge.textContent = totalItem;
+    }
+    if (badgeFloat) {
+        badgeFloat.classList.toggle('hidden', totalItem === 0);
+        badgeFloat.textContent = totalItem;
     }
 
     const lblItemJenis = document.getElementById('lbl-item-jenis');
@@ -1215,6 +1318,26 @@ function pasangFocusTrap(modal) {
             first.focus();
         }
     });
+}
+
+// ------------------------- DRAWER KERANJANG (MOBILE) -------------------------
+
+function bukaCart() {
+    const aside = document.getElementById('cart-drawer');
+    const backdrop = document.getElementById('backdrop-cart');
+    const btn = document.getElementById('btn-buka-cart');
+    if (aside) aside.classList.remove('translate-x-full');
+    if (backdrop) backdrop.classList.remove('hidden');
+    if (btn) btn.classList.add('hidden');
+}
+
+function tutupCart() {
+    const aside = document.getElementById('cart-drawer');
+    const backdrop = document.getElementById('backdrop-cart');
+    const btn = document.getElementById('btn-buka-cart');
+    if (aside) aside.classList.add('translate-x-full');
+    if (backdrop) backdrop.classList.add('hidden');
+    if (btn) btn.classList.remove('hidden');
 }
 
 // ------------------------- INIT -------------------------
@@ -1814,6 +1937,11 @@ gudangSetValue = ddGudang.setValue;
                 document.getElementById('input-search')?.focus();
                 return;
             }
+            const backdropCart = document.getElementById('backdrop-cart');
+            if (backdropCart && !backdropCart.classList.contains('hidden')) {
+                tutupCart();
+                return;
+            }
             if (state.search !== '') {
                 state.search = '';
                 const inp = document.getElementById('input-search');
@@ -1996,6 +2124,18 @@ gudangSetValue = ddGudang.setValue;
     document.getElementById('loading')?.classList.add('hidden');
     document.getElementById('kasir-app')?.classList.remove('hidden');
     render();
+
+    // jam & tanggal berjalan di header
+    updateJamHeader();
+    setInterval(updateJamHeader, 1000);
+
+    // ringkasan omzet hari ini
+    muatRingkasanHari();
+
+    // drawer keranjang (mobile)
+    document.getElementById('btn-buka-cart')?.addEventListener('click', bukaCart);
+    document.getElementById('btn-tutup-cart')?.addEventListener('click', tutupCart);
+    document.getElementById('backdrop-cart')?.addEventListener('click', tutupCart);
 
     const inpAwal = document.getElementById('input-search');
     if (inpAwal) {

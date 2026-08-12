@@ -105,6 +105,18 @@
 
             <div class="flex-1"></div>
 
+            {{-- Jam & tanggal berjalan --}}
+            <div id="jam-header" class="hidden xl:flex flex-col items-end leading-tight mr-4">
+                <span id="jam-header-time" class="text-sm font-black tracking-tight tabular-nums"></span>
+                <span id="jam-header-date" class="text-[11px] font-medium text-zinc-400"></span>
+            </div>
+
+            {{-- Ringkasan omzet hari ini --}}
+            <div id="omzet-hari-ini" class="hidden xl:flex flex-col items-end leading-tight mr-6 pl-6 border-l border-zinc-200">
+                <span id="omzet-hari-ini-total" class="text-sm font-black tracking-tight tabular-nums">Rp 0</span>
+                <span id="omzet-hari-ini-label" class="text-[11px] font-medium text-zinc-400">Transaksi hari ini</span>
+            </div>
+
             <div class="flex items-center gap-3">
                 <div id="dd-gudang" class="relative">
                     <button type="button" data-dd-btn
@@ -156,8 +168,11 @@
 
         <div class="flex-1 flex overflow-hidden">
 
+            {{-- BACKDROP KERANJANG (mobile) --}}
+            <div id="backdrop-cart" class="hidden lg:hidden fixed inset-0 z-20 bg-zinc-950/40 backdrop-blur-sm"></div>
+
             {{-- KIRI: DAFTAR PRODUK --}}
-            <main class="flex-1 flex flex-col min-w-0 px-8 pt-7 overflow-hidden">
+            <main class="flex-1 flex flex-col min-w-0 px-4 lg:px-8 pt-7 overflow-hidden">
                 <div class="anim-fade-up max-w-5xl w-full mx-auto flex flex-col flex-1 overflow-hidden" style="--i: 1">
                     <div class="relative">
                         <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-zinc-400 pointer-events-none"
@@ -183,9 +198,16 @@
             </main>
 
             {{-- KANAN: KERANJANG --}}
-            <aside class="anim-fade-up w-[360px] xl:w-[420px] shrink-0 bg-white border-l border-zinc-200 flex flex-col" style="--i: 2">
+            <aside id="cart-drawer"
+                class="fixed inset-y-0 right-0 z-30 w-[360px] max-w-[92vw] xl:w-[420px] shrink-0 bg-white border-l border-zinc-200 flex flex-col translate-x-full transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:transition-none">
                 <div class="h-16 shrink-0 px-6 border-b border-zinc-100 flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
+                        <button id="btn-tutup-cart" type="button" title="Tutup keranjang"
+                            class="lg:hidden w-8 h-8 -ml-1.5 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                         <h2 class="font-bold tracking-tight">Pesanan</h2>
                         <span id="badge-cart-count"
                             class="hidden min-w-6 h-6 px-1.5 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center tabular-nums"></span>
@@ -233,10 +255,23 @@
                     <div id="payment-details-container" class="space-y-4 hidden">
                         <div class="flex gap-1 bg-zinc-200/60 rounded-xl p-1">
                             @foreach (['tunai' => 'Tunai', 'qris' => 'QRIS', 'transfer' => 'Transfer'] as $val => $label)
-                                <label class="flex-1 text-center text-sm font-semibold text-zinc-500 rounded-lg py-2 cursor-pointer transition
+                                <label class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold text-zinc-500 rounded-lg py-2 cursor-pointer transition
                                               has-checked:bg-white has-checked:text-zinc-900 has-checked:shadow-xs">
                                     <input type="radio" name="jenis_pembayaran" value="{{ $val }}"
                                         class="hidden" {{ $val === 'tunai' ? 'checked' : '' }}>
+                                    @if ($val === 'tunai')
+                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>
+                                        </svg>
+                                    @elseif ($val === 'qris')
+                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M21 14v.01M17 21h4"/>
+                                        </svg>
+                                    @else
+                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7 -3l7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/>
+                                        </svg>
+                                    @endif
                                     {{ $label }}
                                 </label>
                             @endforeach
@@ -294,6 +329,18 @@
             </aside>
         </div>
     </div>
+
+    {{-- TOMBOL FLOATING KERANJANG (mobile) --}}
+    <button id="btn-buka-cart" type="button" title="Buka keranjang"
+        class="lg:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-2xl bg-zinc-900 text-white shadow-2xl shadow-zinc-900/40 flex items-center justify-center active:scale-95 transition-all cursor-pointer">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
+            <path d="M17 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
+            <path d="M17 17h-11v-14h-2"/>
+            <path d="M6 5l14 1l-1 7h-13"/>
+        </svg>
+        <span id="badge-cart-float" class="hidden absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center tabular-nums border-2 border-white"></span>
+    </button>
 
     {{-- MODAL STRUK --}}
     <div id="modal-struk" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
