@@ -898,8 +898,80 @@ function renderProduk() {
         .join('');
 }
 
+function applyPromoBonusRules() {
+    const promoList = state.promoBonus || window.KASIR_DATA?.promoBonus || [];
+    if (!promoList || promoList.length === 0) return;
+
+    // Filter out previous auto-generated bonus items
+    state.cart = state.cart.filter((item) => !item.is_bonus);
+
+    const bonusToAdd = [];
+
+    promoList.forEach((promo) => {
+        const mainItems = state.cart.filter(
+            (item) => Number(item.barang_id) === Number(promo.barang_utama_id) && !item.is_bonus
+        );
+
+        if (!mainItems || mainItems.length === 0) return;
+
+        let totalMainQty = 0;
+        mainItems.forEach((item) => {
+            const barangMain = state.barang.find((b) => Number(b.id) === Number(item.barang_id));
+            const units = barangMain ? getUnitsForBarang(barangMain) : [];
+            const unitObj = units.find((u) => u.satuan === item.satuan);
+            const faktor = unitObj ? Number(unitObj.faktor || 1) : 1;
+            totalMainQty += Number(item.jumlah || 0) * faktor;
+        });
+
+        const minQty = Number(promo.min_qty_utama || 1);
+        if (totalMainQty >= minQty) {
+            let multiplier = 1;
+            if (promo.is_kelipatan) {
+                multiplier = Math.floor(totalMainQty / minQty);
+            }
+
+            const totalBonusQty = Number(promo.qty_bonus || 1) * multiplier;
+            const barangBonus = state.barang.find((b) => Number(b.id) === Number(promo.barang_bonus_id));
+
+            if (barangBonus && totalBonusQty > 0) {
+                const defaultBonusUnit = promo.satuan_bonus || barangBonus.satuan || 'Pcs';
+
+                const stokTersediaBonus = stokTersedia(barangBonus);
+                if (stokTersediaBonus <= 0) {
+                    toast(`Stok barang bonus ${barangBonus.nama_barang} di gudang ini habis`, true);
+                    return;
+                }
+
+                bonusToAdd.push({
+                    barang_id: barangBonus.id,
+                    nama_barang: barangBonus.nama_barang,
+                    nama_promo: promo.nama_promo,
+                    satuan: defaultBonusUnit,
+                    harga: 0,
+                    harga_asli: 0,
+                    jumlah: totalBonusQty,
+                    diskon: 0,
+                    is_bonus: true,
+                    promo_id: promo.id,
+                });
+            }
+        }
+    });
+
+    bonusToAdd.forEach((bonus) => {
+        state.cart.push(bonus);
+    });
+}
+
 function updateCartTierPrices() {
     state.cart.forEach((i) => {
+        if (i.is_bonus) {
+            i.harga = 0;
+            i.harga_asli = 0;
+            i.diskon = 0;
+            return;
+        }
+
         const barang = state.barang.find((b) => Number(b.id) === Number(i.barang_id));
         if (!barang) return;
 
@@ -947,6 +1019,8 @@ function updateCartTierPrices() {
             i.diskon = 0;
         }
     });
+
+    applyPromoBonusRules();
 }
 
 function renderCart() {
@@ -970,6 +1044,21 @@ function renderCart() {
     } else {
         wrap.innerHTML = state.cart
             .map((i, idx) => {
+                if (i.is_bonus) {
+                    return `<div data-cart-row="${idx}" tabindex="-1" class="relative py-2.5 px-3 border border-emerald-200/80 bg-emerald-50/50 rounded-xl space-y-1.5">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300/80 px-1.5 py-0.5 rounded-md shrink-0">[BONUS]</span>
+                                <p class="text-xs font-bold text-zinc-900 leading-snug truncate" title="${i.nama_barang}">${i.nama_barang}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 text-xs">
+                            <span class="text-emerald-700 font-bold">${i.jumlah} ${i.satuan} (GRATIS)</span>
+                            <span class="font-black text-emerald-700 tabular-nums">Rp 0</span>
+                        </div>
+                    </div>`;
+                }
+
                 const barang = state.barang.find((b) => Number(b.id) === Number(i.barang_id));
                 const units = barang ? getUnitsForBarang(barang) : [{ satuan: i.satuan, harga_jual: i.harga }];
 
