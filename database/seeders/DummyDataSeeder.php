@@ -103,8 +103,9 @@ class DummyDataSeeder extends Seeder
                 ]
             );
 
+            $allGudangs = Gudang::all();
             foreach ($cat['items'] as $item) {
-                Barang::firstOrCreate(
+                $barang = Barang::firstOrCreate(
                     [
                         'jenis_barang_id' => $jenis->id,
                         'nama_barang' => $item['nama_barang'],
@@ -115,6 +116,10 @@ class DummyDataSeeder extends Seeder
                         'harga_jual' => $item['harga_jual'],
                     ]
                 );
+
+                foreach ($allGudangs as $g) {
+                    $barang->gudangs()->syncWithoutDetaching([$g->id => ['stok' => 100]]);
+                }
             }
         }
 

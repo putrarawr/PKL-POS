@@ -339,6 +339,7 @@ async function prosesBayar() {
             harga_asli: i.harga_asli ?? i.harga,
             diskon: i.diskon,
             subtotal: subtotalItem(i),
+            is_bonus: !!i.is_bonus,
         })),
     };
 
@@ -908,6 +909,10 @@ function applyPromoBonusRules() {
     const bonusToAdd = [];
 
     promoList.forEach((promo) => {
+        const barangMain = state.barang.find((b) => Number(b.id) === Number(promo.barang_utama_id));
+        if (!barangMain) return;
+        const units = getUnitsForBarang(barangMain);
+
         const mainItems = state.cart.filter(
             (item) => Number(item.barang_id) === Number(promo.barang_utama_id) && !item.is_bonus
         );
@@ -916,18 +921,19 @@ function applyPromoBonusRules() {
 
         let totalMainQty = 0;
         mainItems.forEach((item) => {
-            const barangMain = state.barang.find((b) => Number(b.id) === Number(item.barang_id));
-            const units = barangMain ? getUnitsForBarang(barangMain) : [];
             const unitObj = units.find((u) => u.satuan === item.satuan);
             const faktor = unitObj ? Number(unitObj.faktor || 1) : 1;
             totalMainQty += Number(item.jumlah || 0) * faktor;
         });
 
-        const minQty = Number(promo.min_qty_utama || 1);
-        if (totalMainQty >= minQty) {
+        const unitUtamaObj = units.find((u) => u.satuan === promo.satuan_utama);
+        const faktorUtama = unitUtamaObj ? Number(unitUtamaObj.faktor || 1) : 1;
+        const minQtyInBase = Number(promo.min_qty_utama || 1) * faktorUtama;
+
+        if (totalMainQty >= minQtyInBase) {
             let multiplier = 1;
             if (promo.is_kelipatan) {
-                multiplier = Math.floor(totalMainQty / minQty);
+                multiplier = Math.floor(totalMainQty / minQtyInBase);
             }
 
             const totalBonusQty = Number(promo.qty_bonus || 1) * multiplier;
@@ -1938,10 +1944,22 @@ gudangSetValue = ddGudang.setValue;
         }
     });
 
-    document.getElementById('btn-tutup-struk')?.addEventListener('click', () => {
-        document.getElementById('modal-struk')?.classList.add('hidden');
-        document.getElementById('input-search')?.focus();
+async function tutupModalStruk() {
+    const modal = document.getElementById('modal-struk');
+    if (modal) modal.classList.add('hidden');
+    try {
+        const [barang] = await Promise.all([getBarang()]);
+        state.barang = barang;
+    } catch (_) {}
+    render();
+    document.getElementById('input-search')?.focus();
+}
+
+    const modalStruk = document.getElementById('modal-struk');
+    modalStruk?.addEventListener('click', (e) => {
+        if (e.target === modalStruk) tutupModalStruk();
     });
+    document.getElementById('btn-tutup-struk')?.addEventListener('click', tutupModalStruk);
     document.getElementById('btn-print-struk')?.addEventListener('click', () => window.print());
 
     // ------------------------- SHORTCUT -------------------------
@@ -2016,6 +2034,10 @@ gudangSetValue = ddGudang.setValue;
             if (terbuka === 'modal-konfirmasi-gudang') {
                 pendingGudangId = null;
                 if (gudangSetValue) gudangSetValue(state.gudangId);
+            }
+            if (terbuka === 'modal-struk') {
+                tutupModalStruk();
+                return;
             }
             if (terbuka === 'modal-konfirmasi-hapus') {
                 tutupModalHapus();

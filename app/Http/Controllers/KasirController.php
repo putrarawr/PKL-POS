@@ -288,10 +288,15 @@ class KasirController extends Controller
                     $hargaSatuan = 0;
                     $diskonItem = 0;
                     $subtotal = 0;
+                    $hargaEfektif = 0;
                 } else {
-                    $hargaSatuan = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
-                    $diskonItem = (int) $d['diskon'];
-                    $subtotal = ($hargaSatuan * $d['jumlah']) - $diskonItem;
+                    $hargaNormal = (int) round($barang->harga_jual * $faktor);
+                    $hargaTier = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
+                    $potonganTier = max(0, ($hargaNormal - $hargaTier) * (int) $d['jumlah']);
+                    $diskonItem = (int) $d['diskon'] + $potonganTier;
+                    $hargaSatuan = $hargaNormal;
+                    $hargaEfektif = $hargaTier;
+                    $subtotal = ($hargaNormal * (int) $d['jumlah']) - $diskonItem;
                 }
 
                 $total += $subtotal;
@@ -301,6 +306,7 @@ class KasirController extends Controller
                     'jumlah' => $d['jumlah'],
                     'jumlah_dasar' => $jumlahDasar,
                     'harga' => $hargaSatuan,
+                    'harga_efektif' => $hargaEfektif,
                     'hpp' => $hppSatuan,
                     'diskon' => $diskonItem,
                     'subtotal' => $subtotal,
@@ -361,7 +367,7 @@ class KasirController extends Controller
                     konteks: [
                         'nomer_entry' => $nomerNota,
                         'tanggal' => $data['tanggal'],
-                        'harga' => $d['harga_aktual'],
+                        'harga' => $d['harga_efektif'],
                         'keterangan' => "Penjualan kasir ({$d['jumlah']} {$d['satuan']})",
                         'jenis' => KartuStok::JENIS_KELUAR,
                     ],
