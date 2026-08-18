@@ -326,7 +326,7 @@ class KasirController extends Controller
                     $hargaNormal = (int) round($barang->harga_jual * $faktor);
                     $hargaTier = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
                     $potonganTier = max(0, ($hargaNormal - $hargaTier) * (int) $d['jumlah']);
-                    $diskonItem = (int) $d['diskon'] + $potonganTier;
+                    $diskonItem = max((int) $d['diskon'], $potonganTier);
                     $hargaSatuan = $hargaNormal;
                     $hargaEfektif = $hargaTier;
                     $subtotal = ($hargaNormal * (int) $d['jumlah']) - $diskonItem;

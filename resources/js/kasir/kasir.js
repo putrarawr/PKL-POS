@@ -30,6 +30,7 @@ const state = {
     jenisPembayaran: 'tunai',
     bankTransfer: 'BCA',
     bayar: 0,
+    isUangPas: false,
     paymentExpanded: false,
 };
 
@@ -263,6 +264,7 @@ function resetTransaksi() {
     state.cart = [];
     state.diskonTransaksi = 0;
     state.bayar = 0;
+    state.isUangPas = false;
     state.jenisPembayaran = 'tunai';
     state.bankTransfer = 'BCA';
     document.querySelectorAll('input[name="bank_transfer"]').forEach((radio) => {
@@ -318,7 +320,6 @@ async function prosesBayar() {
         }, 150);
         return;
     }
-
     const payload = buildPayload();
 
     // QRIS & Transfer butuh konfirmasi "dana sudah diterima" sebelum simpan.
@@ -331,7 +332,11 @@ async function prosesBayar() {
 }
 
 function buildPayload() {
-    return {
+    const isPas = state.isUangPas || (state.jenisPembayaran === 'tunai' && state.bayar === totalNeto());
+    const nominalBayar = state.jenisPembayaran === 'tunai' ? (isPas ? totalNeto() : state.bayar) : totalNeto();
+    const nominalKembalian = state.jenisPembayaran === 'tunai' ? (isPas ? 0 : Math.max(0, nominalBayar - totalNeto())) : 0;
+
+    const payload = {
         gudang_id: state.gudangId,
         tanggal: tanggalHariIni(),
         total: totalKotor(),
@@ -341,8 +346,8 @@ function buildPayload() {
         subtotal_normal: totalNormal(),
         potongan_barang: totalPotonganBarang(),
         jenis_pembayaran: state.jenisPembayaran,
-        bayar: state.jenisPembayaran === 'tunai' ? state.bayar : totalNeto(),
-        kembalian: state.jenisPembayaran === 'tunai' ? kembalian() : 0,
+        bayar: nominalBayar,
+        kembalian: nominalKembalian,
         details: state.cart.map((i) => ({
             barang_id: i.barang_id,
             gudang_id: state.gudangId,
@@ -433,7 +438,7 @@ function tampilkanStruk(payload) {
         ?? payload.details.reduce((s, d) => s + Number(d.diskon || 0), 0);
     const potonganTransaksi = Number(payload.diskon || 0);
 
-    const rows = payload.details
+    const itemsHtml = payload.details
         .map((d) => {
             const nama = d.nama_barang
                 ?? state.barang.find((b) => b.id === d.barang_id)?.nama_barang
@@ -442,22 +447,29 @@ function tampilkanStruk(payload) {
             const potonganItem = Number(d.diskon || 0);
             const potonganItemPersen = persenPotongan(potonganItem, hargaUnit * Number(d.jumlah || 0));
             const isBonus = !!d.is_bonus;
-            return `<tr>
-                <td class="py-0.5 pr-2">${escapeHtml(nama)}
-                    ${isBonus
-                        ? `<div class="text-[11px] font-bold text-emerald-600">BONUS (GRATIS)</div>`
-                        : (potonganItem > 0 ? `<div class="text-[11px] font-bold text-red-500">potongan −${potonganItemPersen}%</div>` : '')}
-                </td>
-                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)}${isBonus ? '' : ` x ${rupiah(hargaUnit)}`}</td>
-                <td class="py-0.5 pl-2 text-right">${rupiah(d.subtotal)}</td>
-            </tr>`;
-        })
-        .join('');
 
-    const labelBayar =
-        payload.jenis_pembayaran === 'transfer'
-            ? (payload.bank_transfer ? `transfer ${payload.bank_transfer}` : 'Transfer')
-            : payload.jenis_pembayaran;
+            return `
+                <div class="space-y-0.5">
+                    <p class="font-bold text-sm text-zinc-900 leading-snug">${escapeHtml(nama)}</p>
+                    <div class="flex justify-between items-start text-xs leading-normal">
+                        <span class="text-zinc-700">${d.jumlah} ${escapeHtml(d.satuan)}${isBonus ? '' : ` x ${rupiah(hargaUnit)}`}</span>
+                        <div class="text-right">
+                            <span class="font-bold text-sm text-zinc-900">${rupiah(d.subtotal)}</span>                            ${isBonus
+                    ? `<div class="text-xs font-bold text-zinc-900 mt-0.5">BONUS (GRATIS)</div>`
+                    : (potonganItem > 0
+                        ? `<div class="text-xs font-normal text-zinc-600 mt-0.5">potongan -${potonganItemPersen}%</div>`
+                        : '')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        })
+        .join('<div class="my-3"></div>');
+
+    const jenisPembayaran = String(payload.jenis_pembayaran || 'tunai').toLowerCase();
+    const labelBayar = jenisPembayaran === 'transfer'
+        ? (payload.bank_transfer ? `Transfer ${payload.bank_transfer}` : 'Transfer')
+        : (jenisPembayaran === 'qris' ? 'QRIS' : 'Tunai');
 
     const namaKasir = payload.nama_kasir
         || (typeof window !== 'undefined' && window.KASIR_DATA?.karyawan?.nama)
@@ -468,28 +480,67 @@ function tampilkanStruk(payload) {
         const toko = payload.toko
             || (typeof window !== 'undefined' && window.KASIR_DATA?.toko)
             || TOKO_DEFAULT;
+
+        const dateStr = payload.tanggal ? formatTanggalRupiah(payload.tanggal) : '';
+        const fullDateTime = `${dateStr || payload.tanggal}${payload.jam ? ` ${escapeHtml(payload.jam)}` : ''}`;
+
         body.innerHTML = `
-            <div class="text-center mb-5">
-                <p class="font-black text-lg tracking-tight">${escapeHtml(toko.nama || 'Toko PKL')}</p>
-                ${toko.alamat ? `<p class="text-xs text-zinc-400 mt-0.5">${escapeHtml(toko.alamat)}</p>` : ''}
-                ${toko.kontak ? `<p class="text-xs text-zinc-400">${escapeHtml(toko.kontak)}</p>` : ''}
-                <p class="text-xs text-zinc-400 mt-1">${escapeHtml(gudangNama)}</p>
-                <p class="text-xs text-zinc-400">${escapeHtml(payload.nomer_nota)} &middot; ${payload.tanggal}${payload.jam ? ` &middot; ${escapeHtml(payload.jam)}` : ''}</p>
-                <p class="text-xs font-semibold text-zinc-600 mt-0.5">Kasir: ${escapeHtml(namaKasir)}</p>
+            <div class="text-center font-sans">
+                <h2 class="font-bold text-base text-zinc-900 tracking-tight">${escapeHtml(toko.nama || 'Toko PKL')}</h2>
+                <p class="text-xs text-zinc-700 font-normal mt-0.5">${escapeHtml(gudangNama)}</p>
+                <p class="text-xs text-zinc-700 font-normal mt-0.5">Nota: ${escapeHtml(payload.nomer_nota)} &bull; ${escapeHtml(fullDateTime)}</p>
+                <p class="text-xs text-zinc-700 font-normal mt-0.5">Kasir: ${escapeHtml(namaKasir)}</p>
             </div>
-            <table class="w-full text-sm border-y border-dashed border-zinc-300 py-2 my-2 tabular-nums">${rows}</table>
-            <div class="text-sm space-y-2 mt-4 tabular-nums">
-                <div class="flex justify-between text-zinc-500"><span>Subtotal</span><span class="font-semibold text-zinc-900">${rupiah(subtotalNormal)}</span></div>
-                ${potonganBarang > 0 ? `<div class="flex justify-between text-zinc-500"><span>Potongan Barang (rata-rata)</span><span class="font-semibold text-red-500">- ${persenPotongan(potonganBarang, subtotalNormal)}%</span></div>` : ''}
-                ${potonganTransaksi > 0 ? `<div class="flex justify-between text-zinc-500"><span>Diskon ${diskonPersen > 0 ? `(${diskonPersen}%)` : ''}</span><span class="font-semibold text-red-500">- ${rupiah(potonganTransaksi)}</span></div>` : ''}
-                <div class="flex justify-between items-baseline border-t border-dashed border-zinc-300 pt-2.5 mt-2.5">
-                    <span class="font-bold">Total</span><span class="font-black text-base">${rupiah(payload.neto)}</span>
+
+            <div class="border-b border-dashed border-zinc-400 my-3"></div>
+
+            <div class="space-y-3 font-sans">
+                ${itemsHtml}
+            </div>
+
+            <div class="border-b border-dashed border-zinc-400 my-3"></div>
+
+            <div class="space-y-1.5 text-xs text-zinc-800 font-sans">
+                <div class="flex justify-between items-center">
+                    <span>Subtotal</span>
+                    <span class="text-zinc-900">${rupiah(subtotalNormal)}</span>
                 </div>
-                <div class="flex justify-between text-zinc-500"><span>Bayar (${labelBayar})</span><span class="font-semibold text-zinc-900">${rupiah(payload.bayar)}</span></div>
-                <div class="flex justify-between text-zinc-500"><span>Kembalian</span><span class="font-semibold text-zinc-900">${rupiah(payload.kembalian)}</span></div>
+
+                ${potonganBarang > 0 ? `
+                    <div class="flex justify-between items-center text-xs font-normal text-zinc-800">
+                        <span>Potongan Barang (Total Rp):</span>
+                        <span class="text-zinc-900">- ${rupiah(potonganBarang)}</span>
+                    </div>
+                ` : ''}
+
+                ${potonganTransaksi > 0 ? `
+                    <div class="flex justify-between items-center text-xs font-normal text-zinc-800">
+                        <span>Diskon Nota ${diskonPersen > 0 ? `(${diskonPersen}%)` : ''}:</span>
+                        <span class="text-zinc-900">- ${rupiah(potonganTransaksi)}</span>
+                    </div>
+                ` : ''}
             </div>
-            <p class="text-center text-[11px] text-zinc-500 mt-4 px-4 break-words">Terbilang: ${terbilang(payload.neto)}</p>
-            <p class="text-center text-xs font-medium text-zinc-400 mt-2">Terima kasih atas kunjungan Anda</p>
+
+            <div class="border-b border-dashed border-zinc-400 my-3"></div>
+
+            <div class="space-y-1.5 text-xs font-sans">
+                <div class="flex justify-between items-baseline text-zinc-900 font-bold text-base">
+                    <span>Total</span>
+                    <span>${rupiah(payload.neto)}</span>
+                </div>
+                <div class="flex justify-between items-center text-zinc-800 mt-2">
+                    <span>Bayar (${escapeHtml(labelBayar)})</span>
+                    <span class="text-zinc-900">${rupiah(payload.bayar)}</span>
+                </div>
+                <div class="flex justify-between items-center text-zinc-800 mt-2">
+                    <span>Kembalian</span>
+                    <span class="font-bold text-sm text-zinc-900">${rupiah(payload.kembalian)}</span>
+                </div>
+            </div>
+
+            <div class="border-b border-dashed border-zinc-400 my-4"></div>
+
+            <p class="text-center text-xs text-zinc-400 font-normal my-4">Terima kasih atas kunjungan Anda</p>
         `;
     }
     document.getElementById('modal-struk')?.classList.remove('hidden');
@@ -976,8 +1027,8 @@ function renderProduk() {
                 class="${animate ? 'anim-fade-up ' : ''}relative group text-left bg-white rounded-2xl border p-4 flex flex-col gap-3 transition duration-200
                        ${diKeranjang ? 'border-zinc-900 ring-1 ring-zinc-900 bg-zinc-50' : 'border-zinc-200'}
                        ${habis
-                           ? 'opacity-40 cursor-not-allowed'
-                           : 'cursor-pointer hover:border-zinc-900 hover:shadow-lg hover:shadow-zinc-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]'}
+                    ? 'opacity-40 cursor-not-allowed'
+                    : 'cursor-pointer hover:border-zinc-900 hover:shadow-lg hover:shadow-zinc-200/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]'}
                        ${kelasRing}">
                 ${diKeranjang ? `<span class="absolute -top-2 -left-2 z-10 px-2 py-0.5 rounded-lg bg-zinc-900 text-white text-[10px] font-bold shadow-sm">Di keranjang</span>` : ''}
                 ${jumlahDiKeranjang > 0 ? `<span class="absolute bottom-3 right-3 min-w-6 h-6 px-1.5 rounded-lg bg-zinc-900 text-white text-[11px] font-bold flex items-center justify-center tabular-nums shadow-sm">×${jumlahDiKeranjang}</span>` : ''}
@@ -1175,10 +1226,9 @@ function renderCart() {
                         const active = u.satuan === i.satuan;
                         const checkIcon = `<svg class="w-3.5 h-3.5 shrink-0 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>`;
                         return `<button type="button" data-custom-unit-select="${i.barang_id}" data-unit-val="${u.satuan}"
-                            class="w-full flex items-center justify-between gap-2 text-left text-xs rounded-lg px-2.5 py-1.5 transition-all cursor-pointer ${
-                                active
-                                    ? 'bg-zinc-900 text-white font-bold shadow-xs'
-                                    : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 font-semibold'
+                            class="w-full flex items-center justify-between gap-2 text-left text-xs rounded-lg px-2.5 py-1.5 transition-all cursor-pointer ${active
+                                ? 'bg-zinc-900 text-white font-bold shadow-xs'
+                                : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 font-semibold'
                             }">
                             <span class="truncate">${u.satuan} <span class="${active ? 'text-zinc-300 font-normal' : 'text-zinc-400 font-normal'}">(${rupiah(u.harga_jual)})</span></span>
                             ${active ? checkIcon : ''}
@@ -1223,8 +1273,8 @@ function renderCart() {
                             ${i.jumlah} ${selectedUnitObj.satuan} × ${rupiah(currentHarga)}
                         </span>
                         ${Number(i.diskon || 0) > 0
-                            ? `<span class="text-[11px] text-red-500 tabular-nums font-semibold">diskon −${persenPotongan(i.diskon, (i.harga_asli ?? i.harga) * i.jumlah)}%</span>`
-                            : `<span class="text-[11px] text-zinc-300 font-semibold">${rupiah(subtotalItem(i))}</span>`}
+                        ? `<span class="text-[11px] text-red-500 tabular-nums font-semibold">diskon −${persenPotongan(i.diskon, (i.harga_asli ?? i.harga) * i.jumlah)}%</span>`
+                        : `<span class="text-[11px] text-zinc-300 font-semibold">${rupiah(subtotalItem(i))}</span>`}
                     </div>
                 </div>`;
             })
@@ -1269,6 +1319,10 @@ function renderCart() {
             void lblNeto.offsetWidth;
             lblNeto.classList.add('anim-pop');
         }
+    }
+
+    if (state.isUangPas) {
+        state.bayar = totalNeto();
     }
 
     const inputDiskon = document.getElementById('input-diskon');
@@ -1402,12 +1456,12 @@ function tutupPanduanShortcut() {
 function setupDropdown(rootId, items, selectedValue, onChange, options = {}) {
     const { renderBadge } = options;
     const root = document.getElementById(rootId);
-    if (!root) return { setValue: () => {} };
+    if (!root) return { setValue: () => { } };
 
     const btn = root.querySelector('[data-dd-btn]');
     const lblValue = root.querySelector('[data-dd-value]');
     const chevron = root.querySelector('[data-dd-chevron]');
-    if (!btn) return { setValue: () => {} };
+    if (!btn) return { setValue: () => { } };
 
     // Menu dibuat sebagai portal di <body> supaya tidak terjebak dalam
     // stacking context header dan tidak tertutup drawer/elemen lain.
@@ -1637,36 +1691,36 @@ async function init() {
 
     // dropdown gudang (custom) dengan konfirmasi jika keranjang tidak kosong
     const ddGudang = setupDropdown(
-    'dd-gudang',
-    gudang.map((g) => ({ value: g.id, label: g.nama_gudang })),
-    state.gudangId,
-    (val) => {
-        const nextGudangId = Number(val);
-        if (nextGudangId === state.gudangId) return;
+        'dd-gudang',
+        gudang.map((g) => ({ value: g.id, label: g.nama_gudang })),
+        state.gudangId,
+        (val) => {
+            const nextGudangId = Number(val);
+            if (nextGudangId === state.gudangId) return;
 
-        if (state.cart.length > 0) {
-            pendingGudangId = nextGudangId;
-            const targetGudang = state.gudang.find((g) => g.id === nextGudangId);
-            const nameEl = document.getElementById('target-nama-gudang');
-            if (nameEl) nameEl.textContent = targetGudang?.nama_gudang ?? 'gudang baru';
-            document.getElementById('modal-konfirmasi-gudang')?.classList.remove('hidden');
-        } else {
-            state.gudangId = nextGudangId;
-            state.cart = [];
-            highlightedIdx = -1;
-            render();
-            const input = document.getElementById('input-search');
-            if (input) input.focus();
-        }
-    },
-    {
-        renderBadge: (g) => {
-            const jumlah = state.barang.filter((b) => (b.stok?.[g.value] ?? 0) > 0).length;
-            return jumlah > 0 ? `${jumlah} barang` : 'stok 0';
+            if (state.cart.length > 0) {
+                pendingGudangId = nextGudangId;
+                const targetGudang = state.gudang.find((g) => g.id === nextGudangId);
+                const nameEl = document.getElementById('target-nama-gudang');
+                if (nameEl) nameEl.textContent = targetGudang?.nama_gudang ?? 'gudang baru';
+                document.getElementById('modal-konfirmasi-gudang')?.classList.remove('hidden');
+            } else {
+                state.gudangId = nextGudangId;
+                state.cart = [];
+                highlightedIdx = -1;
+                render();
+                const input = document.getElementById('input-search');
+                if (input) input.focus();
+            }
         },
-    }
-);
-gudangSetValue = ddGudang.setValue;
+        {
+            renderBadge: (g) => {
+                const jumlah = state.barang.filter((b) => (b.stok?.[g.value] ?? 0) > 0).length;
+                return jumlah > 0 ? `${jumlah} barang` : 'stok 0';
+            },
+        }
+    );
+    gudangSetValue = ddGudang.setValue;
 
     // Modal Konfirmasi Gudang
     document.getElementById('btn-batal-gudang')?.addEventListener('click', () => {
@@ -2039,15 +2093,18 @@ gudangSetValue = ddGudang.setValue;
                 let val = Number(raw);
                 e.target.value = val.toLocaleString('id-ID');
                 state.bayar = val;
+                state.isUangPas = (val === totalNeto());
             } else {
                 e.target.value = '';
                 state.bayar = 0;
+                state.isUangPas = false;
             }
             renderCart();
         });
     }
 
     document.getElementById('btn-uang-pas')?.addEventListener('click', () => {
+        state.isUangPas = true;
         state.bayar = totalNeto();
         renderCart();
     });
@@ -2146,16 +2203,16 @@ gudangSetValue = ddGudang.setValue;
         }
     });
 
-async function tutupModalStruk() {
-    const modal = document.getElementById('modal-struk');
-    if (modal) modal.classList.add('hidden');
-    try {
-        const [barang] = await Promise.all([getBarang()]);
-        state.barang = barang;
-    } catch (_) {}
-    render();
-    document.getElementById('input-search')?.focus();
-}
+    async function tutupModalStruk() {
+        const modal = document.getElementById('modal-struk');
+        if (modal) modal.classList.add('hidden');
+        try {
+            const [barang] = await Promise.all([getBarang()]);
+            state.barang = barang;
+        } catch (_) { }
+        render();
+        document.getElementById('input-search')?.focus();
+    }
 
     const modalStruk = document.getElementById('modal-struk');
     modalStruk?.addEventListener('click', (e) => {
