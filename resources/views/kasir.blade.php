@@ -111,12 +111,6 @@
                 <span id="jam-header-date" class="text-[11px] font-medium text-zinc-400"></span>
             </div>
 
-            {{-- Ringkasan omzet hari ini --}}
-            <div id="omzet-hari-ini" class="hidden xl:flex flex-col items-end leading-tight mr-6 pl-6 border-l border-zinc-200">
-                <span id="omzet-hari-ini-total" class="text-sm font-black tracking-tight tabular-nums">Rp 0</span>
-                <span id="omzet-hari-ini-label" class="text-[11px] font-medium text-zinc-400">Transaksi hari ini</span>
-            </div>
-
             <div class="flex items-center gap-3">
                 <div id="dd-gudang" class="relative">
                     <button type="button" data-dd-btn
