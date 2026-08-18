@@ -89,10 +89,10 @@
     <div id="kasir-app" class="hidden h-dvh flex flex-col">
 
         {{-- HEADER --}}
-        <header class="anim-fade-up relative z-30 h-16 shrink-0 bg-white border-b border-zinc-200 px-6 flex items-center gap-6" style="--i: 0">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-sm select-none">K</div>
-                <div class="leading-tight">
+        <header class="anim-fade-up relative z-30 h-16 shrink-0 bg-white border-b border-zinc-200 px-4 lg:px-6 flex items-center gap-3 sm:gap-4 lg:gap-6" style="--i: 0">
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div class="w-8 h-8 shrink-0 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-sm select-none">K</div>
+                <div class="leading-tight hidden sm:block">
                     <h1 class="text-sm font-bold tracking-tight">Kasir</h1>
                     <p class="text-[11px] font-medium text-zinc-400">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif {{ $kasirData['toko']['nama'] ?? 'Toko PKL' }}</p>
                 </div>
@@ -112,23 +112,20 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <div id="dd-gudang" class="relative">
-                    <button type="button" data-dd-btn
-                        class="flex items-center gap-2 border border-zinc-200 rounded-xl bg-white pl-4 pr-3 py-2.5 hover:border-zinc-400 transition-colors cursor-pointer">
-                        <span data-dd-value class="text-sm font-bold"></span>
-                        <svg data-dd-chevron class="w-3.5 h-3.5 text-zinc-400 transition-transform duration-200"
+                <div id="dd-gudang" class="relative shrink-0">
+                    <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
+                        class="flex items-center gap-2 border border-zinc-200 rounded-xl bg-white pl-3 pr-2.5 lg:pl-4 lg:pr-3 py-2.5 max-w-[150px] lg:max-w-[220px] hover:border-zinc-400 transition-colors cursor-pointer">
+                        <span data-dd-value class="text-sm font-bold truncate"></span>
+                        <svg data-dd-chevron class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200"
                             viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4 6l4 4 4-4"/>
                         </svg>
                     </button>
-                    <div data-dd-menu
-                        class="hidden anim-scale-in absolute right-0 top-full mt-2 min-w-full w-max max-h-72 overflow-y-auto z-30 bg-white border border-zinc-200 rounded-xl shadow-xl shadow-zinc-950/10 p-1.5">
-                    </div>
                 </div>
 
                 {{-- Tombol Panduan Shortcut --}}
                 <button id="btn-panduan-shortcut" type="button" title="Panduan shortcut (?)"
-                    class="w-10 h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
                     <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="6" width="20" height="12" rx="2"/>
                         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>
@@ -137,7 +134,7 @@
 
                 {{-- Tombol Riwayat Transaksi --}}
                 <button id="btn-riwayat" type="button" title="Riwayat transaksi"
-                    class="w-10 h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
                     <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9 -9a9.75 9.75 0 0 0 -6.74 2.74l-2.26 -2"/>
                         <path d="M3 3v5h5"/>
@@ -149,7 +146,7 @@
                 <form method="POST" action="{{ route('kasir.logout') }}">
                     @csrf
                     <button type="submit" title="Logout"
-                        class="w-10 h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all duration-200 cursor-pointer">
+                        class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all duration-200 cursor-pointer">
                         <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/>
                             <path d="M9 12h12l-3 -3"/>

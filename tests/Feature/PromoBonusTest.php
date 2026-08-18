@@ -97,12 +97,19 @@ class PromoBonusTest extends TestCase
             'neto' => 30000,
         ]);
 
-        // Detail jual untuk bonus harus memiliki harga 0
+        // Detail jual untuk bonus harus memiliki harga 0 dan ter-tandai bonus
         $this->assertDatabaseHas('detail_jual', [
             'barang_id' => $bBonus->id,
             'jumlah' => 2,
             'harga' => 0,
             'subtotal' => 0,
+            'is_bonus' => true,
+        ]);
+
+        // Item utama tidak boleh ter-tandai bonus
+        $this->assertDatabaseHas('detail_jual', [
+            'barang_id' => $bUtama->id,
+            'is_bonus' => false,
         ]);
     }
 }

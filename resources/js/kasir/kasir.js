@@ -407,11 +407,14 @@ function tampilkanStruk(payload) {
             const hargaUnit = Number(d.harga_asli ?? d.harga ?? 0);
             const potonganItem = Number(d.diskon || 0);
             const potonganItemPersen = persenPotongan(potonganItem, hargaUnit * Number(d.jumlah || 0));
+            const isBonus = !!d.is_bonus;
             return `<tr>
                 <td class="py-0.5 pr-2">${escapeHtml(nama)}
-                    ${potonganItem > 0 ? `<div class="text-[11px] font-bold text-red-500">potongan −${potonganItemPersen}%</div>` : ''}
+                    ${isBonus
+                        ? `<div class="text-[11px] font-bold text-emerald-600">BONUS (GRATIS)</div>`
+                        : (potonganItem > 0 ? `<div class="text-[11px] font-bold text-red-500">potongan −${potonganItemPersen}%</div>` : '')}
                 </td>
-                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)} x ${rupiah(hargaUnit)}</td>
+                <td class="py-0.5 text-right whitespace-nowrap">${d.jumlah} ${escapeHtml(d.satuan)}${isBonus ? '' : ` x ${rupiah(hargaUnit)}`}</td>
                 <td class="py-0.5 pl-2 text-right">${rupiah(d.subtotal)}</td>
             </tr>`;
         })
@@ -826,6 +829,7 @@ function cetakUlangRiwayat(penjualanId) {
             harga: d.harga,
             diskon: d.diskon,
             subtotal: d.subtotal,
+            is_bonus: !!d.is_bonus,
         })),
     });
     tutupModalRiwayat();
@@ -1357,24 +1361,37 @@ function tutupPanduanShortcut() {
 
 // ------------------------- DROPDOWN CUSTOM -------------------------
 
-function setupDropdown(rootId, items, selectedValue, onChange) {
+function setupDropdown(rootId, items, selectedValue, onChange, options = {}) {
+    const { renderBadge } = options;
     const root = document.getElementById(rootId);
     if (!root) return { setValue: () => {} };
 
     const btn = root.querySelector('[data-dd-btn]');
-    const menu = root.querySelector('[data-dd-menu]');
     const lblValue = root.querySelector('[data-dd-value]');
     const chevron = root.querySelector('[data-dd-chevron]');
-    if (!btn || !menu) return { setValue: () => {} };
+    if (!btn) return { setValue: () => {} };
+
+    // Menu dibuat sebagai portal di <body> supaya tidak terjebak dalam
+    // stacking context header dan tidak tertutup drawer/elemen lain.
+    const menu = document.createElement('div');
+    menu.setAttribute('data-dd-menu', '');
+    menu.setAttribute('role', 'listbox');
+    menu.className = 'hidden anim-scale-in fixed min-w-[180px] w-max max-w-[min(90vw,320px)] max-h-72 overflow-y-auto bg-white border border-zinc-200 rounded-xl shadow-xl shadow-zinc-950/10 p-1.5';
+    menu.style.zIndex = '45';
+    document.body.appendChild(menu);
 
     let current = selectedValue;
 
     const itemActive =
-        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-bold rounded-lg px-3 py-2 bg-zinc-900 text-white cursor-pointer shadow-xs';
+        'dd-item w-full min-w-0 flex items-center justify-between gap-3 text-left text-sm font-bold rounded-lg px-3 py-2 bg-zinc-900 text-white cursor-pointer shadow-xs';
     const itemIdle =
-        'dd-item w-full flex items-center justify-between gap-3 text-left text-sm font-semibold text-zinc-600 rounded-lg px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 cursor-pointer transition-colors';
+        'dd-item w-full min-w-0 flex items-center justify-between gap-3 text-left text-sm font-semibold text-zinc-600 rounded-lg px-3 py-2 hover:bg-zinc-100 hover:text-zinc-900 cursor-pointer transition-colors';
     const check =
         '<svg class="w-3.5 h-3.5 shrink-0 text-white" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 5"/></svg>';
+
+    function setAria(expanded) {
+        btn.setAttribute('aria-expanded', String(expanded));
+    }
 
     function renderMenu() {
         if (items.length === 0) {
@@ -1385,24 +1402,89 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
         menu.innerHTML = items
             .map((it) => {
                 const active = String(it.value) === String(current);
-                return `<button type="button" data-dd-val="${it.value}" class="${active ? itemActive : itemIdle}">
-                    <span class="truncate">${it.label}</span>${active ? check : '<span class="w-3.5"></span>'}
+                const badge = renderBadge ? renderBadge(it) : '';
+                return `<button type="button" role="option" aria-selected="${active}" data-dd-val="${it.value}" class="${active ? itemActive : itemIdle}">
+                    <span class="truncate min-w-0">${it.label}</span>
+                    ${badge ? `<span class="shrink-0 text-[11px] font-bold whitespace-nowrap ${active ? 'text-zinc-300' : 'text-zinc-400'}">${badge}</span>` : ''}
+                    ${active ? check : '<span class="w-3.5 shrink-0"></span>'}
                 </button>`;
             })
             .join('');
         if (lblValue) lblValue.textContent = items.find((it) => String(it.value) === String(current))?.label ?? '';
     }
 
+    function positionMenu() {
+        const rect = btn.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        menu.style.left = 'auto';
+        if (spaceBelow >= 300) {
+            menu.style.top = (rect.bottom + 8) + 'px';
+            menu.style.bottom = 'auto';
+        } else {
+            menu.style.bottom = Math.max(8, window.innerHeight - rect.top + 8) + 'px';
+            menu.style.top = 'auto';
+        }
+        menu.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+    }
+
     function close() {
         menu.classList.add('hidden');
         if (chevron) chevron.classList.remove('rotate-180');
+        setAria(false);
+    }
+
+    function open() {
+        renderMenu();
+        positionMenu();
+        menu.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+        setAria(true);
+    }
+
+    function focusItem(delta) {
+        const opts = Array.from(menu.querySelectorAll('[data-dd-val]'));
+        if (opts.length === 0) return;
+        const cur = opts.indexOf(document.activeElement);
+        const next = opts[Math.min(Math.max(cur + delta, 0), opts.length - 1)];
+        next.focus();
     }
 
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const willOpen = menu.classList.contains('hidden');
-        menu.classList.toggle('hidden', !willOpen);
-        if (chevron) chevron.classList.toggle('rotate-180', willOpen);
+        if (menu.classList.contains('hidden')) {
+            open();
+        } else {
+            close();
+        }
+    });
+
+    btn.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (menu.classList.contains('hidden')) {
+                open();
+            }
+            focusItem(e.key === 'ArrowDown' ? 1 : -1);
+        } else if (e.key === 'Escape' && !menu.classList.contains('hidden')) {
+            e.preventDefault();
+            close();
+            btn.focus();
+        }
+    });
+
+    menu.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            focusItem(e.key === 'ArrowDown' ? 1 : -1);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            close();
+            btn.focus();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const item = e.target.closest('[data-dd-val]');
+            if (item) item.click();
+        }
     });
 
     menu.addEventListener('click', (e) => {
@@ -1414,12 +1496,17 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
         onChange(current);
     });
 
+    const repositionSaatUbahLayar = () => {
+        if (!menu.classList.contains('hidden')) positionMenu();
+    };
+    window.addEventListener('resize', repositionSaatUbahLayar);
+    window.addEventListener('orientationchange', repositionSaatUbahLayar);
+
     renderMenu();
     return {
         close,
         open: () => {
-            menu.classList.remove('hidden');
-            if (chevron) chevron.classList.add('rotate-180');
+            open();
             const first = menu.querySelector('[data-dd-val]');
             if (first) first.focus();
         },
@@ -1433,6 +1520,8 @@ function setupDropdown(rootId, items, selectedValue, onChange) {
 
 document.addEventListener('click', () => {
     document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu], [data-unit-dropdown-menu]').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('[data-dd-btn]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+    document.querySelectorAll('[data-custom-dd-btn]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
     document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron], [data-unit-dropdown-chevron]').forEach((c) => c.classList.remove('rotate-180'));
 });
 
@@ -1531,6 +1620,12 @@ async function init() {
             const input = document.getElementById('input-search');
             if (input) input.focus();
         }
+    },
+    {
+        renderBadge: (g) => {
+            const jumlah = state.barang.filter((b) => (b.stok?.[g.value] ?? 0) > 0).length;
+            return jumlah > 0 ? `${jumlah} barang` : 'stok 0';
+        },
     }
 );
 gudangSetValue = ddGudang.setValue;
@@ -2087,7 +2182,11 @@ async function tutupModalStruk() {
             }
             const ddTerbuka = document.querySelector('[data-dd-menu]:not(.hidden), [data-custom-dd-menu]:not(.hidden)');
             if (ddTerbuka) {
-                document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu]').forEach((m) => m.classList.add('hidden'));
+                document.querySelectorAll('[data-dd-menu], [data-custom-dd-menu]').forEach((m) => {
+                    m.classList.add('hidden');
+                    const b = m.parentElement?.querySelector('[data-dd-btn], [data-custom-dd-btn]');
+                    if (b) b.setAttribute('aria-expanded', 'false');
+                });
                 document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
                 return;
             }

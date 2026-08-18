@@ -21,6 +21,11 @@ class DetailJual extends Model
         'hpp',
         'diskon',
         'subtotal',
+        'is_bonus',
+    ];
+
+    protected $casts = [
+        'is_bonus' => 'boolean',
     ];
 
     public function penjualan()

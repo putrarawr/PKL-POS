@@ -225,6 +225,7 @@ class KasirController extends Controller
                 'harga' => (int) $d->harga,
                 'diskon' => (int) $d->diskon,
                 'subtotal' => (int) $d->subtotal,
+                'is_bonus' => (bool) $d->is_bonus,
             ]),
         ]);
 
@@ -357,6 +358,7 @@ class KasirController extends Controller
                     'hpp' => $d['hpp'],
                     'diskon' => $d['diskon'],
                     'subtotal' => $d['subtotal'],
+                    'is_bonus' => $d['is_bonus'],
                 ]);
 
                 // === STOK & KARTU STOK via StokService (dikurangi dalam Satuan Dasar) ===
