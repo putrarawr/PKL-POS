@@ -554,6 +554,35 @@
         </div>
     </div>
 
+    {{-- MODAL OTORISASI PASSWORD CETAK ULANG STRUK --}}
+    <div id="modal-password-cetak" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-zinc-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Otorisasi Cetak Ulang</h3>
+                <p class="text-sm text-zinc-500 mt-1">Masukkan password otorisasi untuk mencetak ulang struk nota <span id="label-nota-password" class="font-bold text-zinc-900"></span>.</p>
+            </div>
+            <form id="form-password-cetak" class="mt-5 space-y-4">
+                <div>
+                    <input id="input-password-cetak" type="password" placeholder="Masukkan password" required autocomplete="off"
+                        class="w-full h-11 border border-zinc-200 rounded-xl px-4 text-sm font-medium bg-white placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors">
+                    <p id="error-password-cetak" class="hidden text-xs font-semibold text-red-600 mt-1.5"></p>
+                </div>
+                <div class="flex gap-2.5">
+                    <button id="btn-batal-password-cetak" type="button"
+                        class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                    <button type="submit"
+                        class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Verifikasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toast" class="hidden"></div>
 </body>
 </html>

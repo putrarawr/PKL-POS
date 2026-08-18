@@ -575,6 +575,7 @@ let riwayatCache = [];
 let riwayatTerakhirId = null;
 let riwayatHasMore = false;
 let riwayatSummary = null;
+let pendingCetakPenjualanId = null;
 
 function renderRiwayatItems(items, append) {
     const list = document.getElementById('riwayat-list');
@@ -725,7 +726,7 @@ async function refreshStokSilent() {
     const ae = document.activeElement;
     if (ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName)) return;
     if (ae && (ae.hasAttribute?.('data-add') || ae.closest?.('[data-add]'))) return;
-    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat'].some((id) => {
+    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
         const el = document.getElementById(id);
         return el && !el.classList.contains('hidden');
     });
@@ -735,6 +736,63 @@ async function refreshStokSilent() {
         state.barang = barang;
         renderProduk();
     } catch (_) {
+    }
+}
+
+function mintaPasswordCetak(penjualanId) {
+    const r = riwayatCache.find((x) => String(x.id) === String(penjualanId));
+    if (!r) {
+        toast('Nota tidak ditemukan', true);
+        return;
+    }
+    pendingCetakPenjualanId = penjualanId;
+    const label = document.getElementById('label-nota-password');
+    if (label) label.textContent = r.nomer_nota;
+
+    const input = document.getElementById('input-password-cetak');
+    if (input) input.value = '';
+
+    const errEl = document.getElementById('error-password-cetak');
+    if (errEl) {
+        errEl.textContent = '';
+        errEl.classList.add('hidden');
+    }
+
+    const modal = document.getElementById('modal-password-cetak');
+    if (modal) modal.classList.remove('hidden');
+    setTimeout(() => input?.focus(), 50);
+}
+
+function tutupModalPasswordCetak() {
+    pendingCetakPenjualanId = null;
+    const modal = document.getElementById('modal-password-cetak');
+    if (modal) modal.classList.add('hidden');
+    const input = document.getElementById('input-password-cetak');
+    if (input) input.value = '';
+}
+
+function verifikasiPasswordCetak(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('input-password-cetak');
+    const pw = input ? input.value.trim() : '';
+    const errEl = document.getElementById('error-password-cetak');
+
+    if (pw !== 'kasir123') {
+        if (errEl) {
+            errEl.textContent = 'Password salah! Silakan coba lagi.';
+            errEl.classList.remove('hidden');
+        }
+        if (input) {
+            input.focus();
+            input.select();
+        }
+        return;
+    }
+
+    const idToPrint = pendingCetakPenjualanId;
+    tutupModalPasswordCetak();
+    if (idToPrint) {
+        cetakUlangRiwayat(idToPrint);
     }
 }
 
@@ -1576,7 +1634,7 @@ gudangSetValue = ddGudang.setValue;
     }
 
     document.addEventListener('keydown', (e) => {
-        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat'].some((id) => {
+        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -1994,7 +2052,14 @@ async function tutupModalStruk() {
     });
     document.getElementById('riwayat-list')?.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-cetak-ulang]');
-        if (btn) cetakUlangRiwayat(btn.dataset.cetakUlang);
+        if (btn) mintaPasswordCetak(btn.dataset.cetakUlang);
+    });
+
+    document.getElementById('form-password-cetak')?.addEventListener('submit', verifikasiPasswordCetak);
+    document.getElementById('btn-batal-password-cetak')?.addEventListener('click', tutupModalPasswordCetak);
+    const modalPwCetak = document.getElementById('modal-password-cetak');
+    modalPwCetak?.addEventListener('click', (e) => {
+        if (e.target === modalPwCetak) tutupModalPasswordCetak();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -2026,11 +2091,15 @@ async function tutupModalStruk() {
                 document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
                 return;
             }
-            const urutanModal = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat'];
+            const urutanModal = ['modal-struk', 'modal-password-cetak', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat'];
             const terbuka = urutanModal.find((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
             });
+            if (terbuka === 'modal-password-cetak') {
+                tutupModalPasswordCetak();
+                return;
+            }
             if (terbuka === 'modal-konfirmasi-gudang') {
                 pendingGudangId = null;
                 if (gudangSetValue) gudangSetValue(state.gudangId);
@@ -2074,7 +2143,7 @@ async function tutupModalStruk() {
                 tutupPanduanShortcut();
                 return;
             }
-            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat'].some((id) => {
+            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
             });
@@ -2113,7 +2182,7 @@ async function tutupModalStruk() {
             }
         }
 
-        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat'].some((id) => {
+        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -2228,7 +2297,7 @@ async function tutupModalStruk() {
         document.getElementById('badge-mock')?.classList.remove('hidden');
     }
 
-    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus'].forEach((id) => {
+    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-password-cetak'].forEach((id) => {
         pasangFocusTrap(document.getElementById(id));
     });
 
