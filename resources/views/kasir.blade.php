@@ -527,6 +527,44 @@
                 <button id="btn-riwayat-hari-ini" type="button"
                     class="shrink-0 px-4 py-2 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:border-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer">Hari Ini</button>
             </div>
+            <div class="shrink-0 grid grid-cols-3 gap-2 px-6 py-2.5 border-b border-zinc-100">
+                <label class="block min-w-0">
+                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Kasir</span>
+                    <div id="filter-riwayat-kasir" class="relative">
+                        <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
+                            class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
+                            <span data-dd-value class="truncate min-w-0"></span>
+                            <svg data-dd-chevron class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 6l4 4 4-4"/>
+                            </svg>
+                        </button>
+                    </div>
+                </label>
+                <label class="block min-w-0">
+                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Gudang</span>
+                    <div id="filter-riwayat-gudang" class="relative">
+                        <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
+                            class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
+                            <span data-dd-value class="truncate min-w-0"></span>
+                            <svg data-dd-chevron class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 6l4 4 4-4"/>
+                            </svg>
+                        </button>
+                    </div>
+                </label>
+                <label class="block min-w-0">
+                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Metode</span>
+                    <div id="filter-riwayat-metode" class="relative">
+                        <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
+                            class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
+                            <span data-dd-value class="truncate min-w-0"></span>
+                            <svg data-dd-chevron class="w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 6l4 4 4-4"/>
+                            </svg>
+                        </button>
+                    </div>
+                </label>
+            </div>
             <div id="riwayat-summary" class="hidden shrink-0 flex items-center justify-between px-6 py-2.5 border-b border-zinc-100 text-xs">
                 <span id="riwayat-summary-jumlah" class="font-bold text-zinc-500"></span>
                 <span id="riwayat-summary-total" class="font-black text-zinc-900 tabular-nums"></span>
@@ -577,6 +615,31 @@
                         class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Verifikasi</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- MODAL KONFIRMASI PEMBAYARAN NON-TUNAI --}}
+    <div id="modal-konfirmasi-nontunai" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-zinc-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 11l1 2l2 -2"/>
+                        <path d="M13 13l1 2l4 -4"/>
+                        <path d="M7 17h10"/>
+                        <path d="M12 19c-4.97 0 -9 -3.13 -9 -7s4.03 -7 9 -7s9 3.13 9 7"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Konfirmasi Pembayaran</h3>
+                <p class="text-sm text-zinc-500 mt-2">Pembayaran <span id="label-metode-nontunai" class="font-bold text-zinc-900"></span> sebesar <span id="label-nominal-nontunai" class="font-black text-zinc-900 tabular-nums"></span>.</p>
+                <p class="text-xs text-zinc-400 mt-2">Pastikan dana sudah diterima sebelum melanjutkan transaksi.</p>
+            </div>
+            <div class="flex gap-2.5 mt-7">
+                <button id="btn-batal-nontunai" type="button"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                <button id="btn-konfirmasi-nontunai" type="button"
+                    class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Terima Pembayaran</button>
+            </div>
         </div>
     </div>
 

@@ -217,6 +217,7 @@ function hapusItem(barangId) {
 }
 
 let pendingHapusId = null;
+let pendingNontunaiPayload = null;
 
 function mintaHapusItem(barangId) {
     const item = state.cart.find((i) => i.barang_id === barangId);
@@ -318,7 +319,19 @@ async function prosesBayar() {
         return;
     }
 
-    const payload = {
+    const payload = buildPayload();
+
+    // QRIS & Transfer butuh konfirmasi "dana sudah diterima" sebelum simpan.
+    if (state.jenisPembayaran !== 'tunai') {
+        bukaModalKonfirmasiNontunai(payload);
+        return;
+    }
+
+    await simpanTransaksi(payload);
+}
+
+function buildPayload() {
+    return {
         gudang_id: state.gudangId,
         tanggal: tanggalHariIni(),
         total: totalKotor(),
@@ -342,7 +355,28 @@ async function prosesBayar() {
             is_bonus: !!i.is_bonus,
         })),
     };
+}
 
+function bukaModalKonfirmasiNontunai(payload) {
+    pendingNontunaiPayload = payload;
+    const labelMetode = document.getElementById('label-metode-nontunai');
+    const labelNominal = document.getElementById('label-nominal-nontunai');
+    const labelBayar =
+        payload.jenis_pembayaran === 'transfer'
+            ? (state.bankTransfer ? `Transfer ${state.bankTransfer}` : 'Transfer')
+            : 'QRIS';
+    if (labelMetode) labelMetode.textContent = labelBayar;
+    if (labelNominal) labelNominal.textContent = rupiah(payload.neto);
+    document.getElementById('modal-konfirmasi-nontunai')?.classList.remove('hidden');
+    document.getElementById('btn-konfirmasi-nontunai')?.focus();
+}
+
+function tutupModalKonfirmasiNontunai() {
+    pendingNontunaiPayload = null;
+    document.getElementById('modal-konfirmasi-nontunai')?.classList.add('hidden');
+}
+
+async function simpanTransaksi(payload) {
     const btn = document.getElementById('btn-bayar');
     if (btn) {
         btn.disabled = true;
@@ -578,6 +612,7 @@ let riwayatCache = [];
 let riwayatTerakhirId = null;
 let riwayatHasMore = false;
 let riwayatSummary = null;
+let riwayatFilter = { kasir: '', gudang_id: '', metode: '' };
 let pendingCetakPenjualanId = null;
 
 function renderRiwayatItems(items, append) {
@@ -659,6 +694,9 @@ async function muatRiwayat(tanggal, append = false) {
         const res = await getRiwayat(tanggal, {
             limit: RIWAYAT_BATCH,
             before: append ? riwayatTerakhirId : undefined,
+            kasir: riwayatFilter.kasir || undefined,
+            gudang_id: riwayatFilter.gudang_id || undefined,
+            metode: riwayatFilter.metode || undefined,
         });
         if (reqId !== riwayatReqId) return;
         pemuatan?.classList.add('hidden');
@@ -729,7 +767,7 @@ async function refreshStokSilent() {
     const ae = document.activeElement;
     if (ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName)) return;
     if (ae && (ae.hasAttribute?.('data-add') || ae.closest?.('[data-add]'))) return;
-    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
         const el = document.getElementById(id);
         return el && !el.classList.contains('hidden');
     });
@@ -1377,7 +1415,7 @@ function setupDropdown(rootId, items, selectedValue, onChange, options = {}) {
     menu.setAttribute('data-dd-menu', '');
     menu.setAttribute('role', 'listbox');
     menu.className = 'hidden anim-scale-in fixed min-w-[180px] w-max max-w-[min(90vw,320px)] max-h-72 overflow-y-auto bg-white border border-zinc-200 rounded-xl shadow-xl shadow-zinc-950/10 p-1.5';
-    menu.style.zIndex = '45';
+    menu.style.zIndex = '60';
     document.body.appendChild(menu);
 
     let current = selectedValue;
@@ -1652,6 +1690,17 @@ gudangSetValue = ddGudang.setValue;
         }
     });
 
+    // Modal Konfirmasi Pembayaran Non-Tunai
+    document.getElementById('btn-batal-nontunai')?.addEventListener('click', tutupModalKonfirmasiNontunai);
+    document.getElementById('btn-konfirmasi-nontunai')?.addEventListener('click', async () => {
+        const payload = pendingNontunaiPayload;
+        tutupModalKonfirmasiNontunai();
+        if (payload) await simpanTransaksi(payload);
+    });
+    document.getElementById('modal-konfirmasi-nontunai')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) tutupModalKonfirmasiNontunai();
+    });
+
     const modalGudang = document.getElementById('modal-konfirmasi-gudang');
     modalGudang?.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -1729,7 +1778,7 @@ gudangSetValue = ddGudang.setValue;
     }
 
     document.addEventListener('keydown', (e) => {
-        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -2141,6 +2190,45 @@ async function tutupModalStruk() {
     document.getElementById('btn-riwayat-lebih')?.addEventListener('click', () => {
         if (riwayatHasMore) muatRiwayat(riwayatTanggalAktif, true);
     });
+
+    // Filter riwayat: kasir / gudang / metode (dropdown custom seperti gudang di header)
+    const reloadRiwayat = () => {
+        const input = document.getElementById('riwayat-tanggal');
+        muatRiwayat(riwayatTanggalAktif || input?.value || tanggalHariIni());
+    };
+    const kasirList = window.KASIR_DATA?.kasirList ?? [];
+    setupDropdown(
+        'filter-riwayat-kasir',
+        [{ value: '', label: 'Semua' }, ...kasirList.map((nama) => ({ value: nama, label: nama }))],
+        riwayatFilter.kasir,
+        (val) => {
+            riwayatFilter.kasir = val;
+            reloadRiwayat();
+        }
+    );
+    setupDropdown(
+        'filter-riwayat-gudang',
+        [{ value: '', label: 'Semua' }, ...state.gudang.map((g) => ({ value: String(g.id), label: g.nama_gudang }))],
+        riwayatFilter.gudang_id,
+        (val) => {
+            riwayatFilter.gudang_id = val;
+            reloadRiwayat();
+        }
+    );
+    setupDropdown(
+        'filter-riwayat-metode',
+        [
+            { value: '', label: 'Semua' },
+            { value: 'tunai', label: 'Tunai' },
+            { value: 'qris', label: 'QRIS' },
+            { value: 'transfer', label: 'Transfer' },
+        ],
+        riwayatFilter.metode,
+        (val) => {
+            riwayatFilter.metode = val;
+            reloadRiwayat();
+        }
+    );
     const modalRiwayat = document.getElementById('modal-riwayat');
     modalRiwayat?.addEventListener('click', (e) => {
         if (e.target === modalRiwayat) tutupModalRiwayat();
@@ -2190,7 +2278,7 @@ async function tutupModalStruk() {
                 document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
                 return;
             }
-            const urutanModal = ['modal-struk', 'modal-password-cetak', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat'];
+            const urutanModal = ['modal-struk', 'modal-password-cetak', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-riwayat'];
             const terbuka = urutanModal.find((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
@@ -2202,6 +2290,10 @@ async function tutupModalStruk() {
             if (terbuka === 'modal-konfirmasi-gudang') {
                 pendingGudangId = null;
                 if (gudangSetValue) gudangSetValue(state.gudangId);
+            }
+            if (terbuka === 'modal-konfirmasi-nontunai') {
+                tutupModalKonfirmasiNontunai();
+                return;
             }
             if (terbuka === 'modal-struk') {
                 tutupModalStruk();
@@ -2281,7 +2373,7 @@ async function tutupModalStruk() {
             }
         }
 
-        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -2396,7 +2488,7 @@ async function tutupModalStruk() {
         document.getElementById('badge-mock')?.classList.remove('hidden');
     }
 
-    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-password-cetak'].forEach((id) => {
+    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-password-cetak'].forEach((id) => {
         pasangFocusTrap(document.getElementById(id));
     });
 

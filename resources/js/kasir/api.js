@@ -98,7 +98,7 @@ export async function getGudang() {
  * Riwayat transaksi (default: hari ini). GET /kasir/riwayat.
  * Saat mode mock, kembalikan array kosong (sesi local tidak menyimpan riwayat).
  */
-export async function getRiwayat(tanggal, { limit, before } = {}) {
+export async function getRiwayat(tanggal, { limit, before, kasir, gudang_id, metode } = {}) {
     if (USE_MOCK) {
         await new Promise((r) => setTimeout(r, 250));
         return { items: [], summary: { jumlah: 0, total_neto: 0 } };
@@ -108,6 +108,9 @@ export async function getRiwayat(tanggal, { limit, before } = {}) {
     if (tanggal) params.set('tanggal', tanggal);
     if (limit != null) params.set('limit', limit);
     if (before != null) params.set('before', before);
+    if (kasir) params.set('kasir', kasir);
+    if (gudang_id) params.set('gudang_id', gudang_id);
+    if (metode) params.set('metode', metode);
     const url = `/kasir/riwayat${params.toString() ? `?${params.toString()}` : ''}`;
 
     const res = await fetch(url, {

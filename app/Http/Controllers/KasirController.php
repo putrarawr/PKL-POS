@@ -121,6 +121,10 @@ class KasirController extends Controller
                 'jenisBarang' => JenisBarang::all(['id', 'nama_jenis']),
                 'gudang' => Gudang::all(['id', 'nama_gudang', 'alamat']),
                 'toko' => config('toko'),
+                'kasirList' => array_merge(
+                    \App\Models\Karyawan::all()->pluck('nama_karyawan')->all(),
+                    \App\Models\User::all()->map(fn ($u) => $u->name . ' [Admin]')->all(),
+                ),
                 'promoBonus' => \App\Models\PromoBonus::active()->get()->map(fn ($p) => [
                     'id' => $p->id,
                     'nama_promo' => $p->nama_promo,
@@ -188,15 +192,43 @@ class KasirController extends Controller
         $tanggal = $request->query('tanggal', now()->toDateString());
         $limit = max(1, min((int) $request->query('limit', 50), 200));
         $before = $request->query('before');
+        $kasir = trim((string) $request->query('kasir', ''));
+        $gudangId = $request->query('gudang_id');
+        $metode = $request->query('metode');
+
+        if ($gudangId !== null && (int) $gudangId <= 0) {
+            $gudangId = null;
+        }
+        if (!in_array($metode, ['tunai', 'qris', 'transfer'], true)) {
+            $metode = null;
+        }
+        $kasirUser = $kasir !== '' ? preg_replace('/\s*\[Admin\]\s*$/i', '', $kasir) : '';
+
+        $scope = function ($q) use ($kasir, $kasirUser, $gudangId, $metode) {
+            if ($gudangId) {
+                $q->where('gudang_id', (int) $gudangId);
+            }
+            if ($metode) {
+                $q->where('jenis_pembayaran', $metode);
+            }
+            if ($kasir !== '') {
+                $q->where(function ($q2) use ($kasir, $kasirUser) {
+                    $q2->whereHas('karyawan', fn ($qq) => $qq->where('nama_karyawan', $kasir))
+                        ->orWhereHas('user', fn ($qq) => $qq->where('name', $kasirUser));
+                });
+            }
+        };
 
         $penjualan = Penjualan::with(['details.barang', 'gudang', 'karyawan', 'user'])
             ->whereDate('tanggal', $tanggal)
             ->when($before !== null && (int) $before > 0, fn ($q) => $q->where('id', '<', (int) $before))
+            ->where($scope)
             ->orderByDesc('id')
             ->limit($limit)
             ->get();
 
         $summary = Penjualan::whereDate('tanggal', $tanggal)
+            ->where($scope)
             ->selectRaw('count(*) as jumlah, coalesce(sum(neto), 0) as total_neto')
             ->first();
 
