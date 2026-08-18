@@ -336,7 +336,7 @@ function buildPayload() {
     const nominalBayar = state.jenisPembayaran === 'tunai' ? (isPas ? totalNeto() : state.bayar) : totalNeto();
     const nominalKembalian = state.jenisPembayaran === 'tunai' ? (isPas ? 0 : Math.max(0, nominalBayar - totalNeto())) : 0;
 
-    const payload = {
+    return {
         gudang_id: state.gudangId,
         tanggal: tanggalHariIni(),
         total: totalKotor(),
