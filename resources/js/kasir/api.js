@@ -38,18 +38,18 @@ const mockData = {
     ],
     // stok = { [gudang_id]: jumlah }, sama kayak pivot barang_gudang
     barang: [
-        { id: 1, jenis_barang_id: 1, nama_barang: 'Kopi Susu Botol', harga_jual: 8000, satuan: 'btl', stok: { 1: 40, 2: 12 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 8000 }, { level: 2, satuan: 'dus', faktor: 24, isi_info: '1 dus = 24 btl', harga_jual: 180000 }] },
-        { id: 2, jenis_barang_id: 1, nama_barang: 'Teh Tarik Kotak', harga_jual: 6500, satuan: 'pcs', stok: { 1: 25, 2: 8 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 6500 }, { level: 2, satuan: 'pack', faktor: 10, isi_info: '1 pack = 10 pcs', harga_jual: 60000 }] },
-        { id: 3, jenis_barang_id: 1, nama_barang: 'Air Mineral 600ml', harga_jual: 4000, satuan: 'btl', stok: { 1: 100, 2: 24 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 4000 }, { level: 2, satuan: 'dus', faktor: 24, isi_info: '1 dus = 24 btl', harga_jual: 90000 }] },
-        { id: 4, jenis_barang_id: 2, nama_barang: 'Indomie Goreng', harga_jual: 3500, satuan: 'pcs', stok: { 1: 200, 2: 40 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 3500 }, { level: 2, satuan: 'dus', faktor: 40, isi_info: '1 dus = 40 pcs', harga_jual: 135000 }] },
-        { id: 5, jenis_barang_id: 2, nama_barang: 'Roti Sobek Coklat', harga_jual: 12000, satuan: 'pcs', stok: { 1: 15, 2: 5 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 12000 }] },
-        { id: 6, jenis_barang_id: 2, nama_barang: 'Biskuit Kaleng', harga_jual: 25000, satuan: 'klg', stok: { 1: 10, 2: 2 }, units: [{ level: 1, satuan: 'klg', faktor: 1, isi_info: null, harga_jual: 25000 }] },
-        { id: 7, jenis_barang_id: 3, nama_barang: 'Beras 5kg', harga_jual: 68000, satuan: 'sak', stok: { 1: 30, 2: 0 }, units: [{ level: 1, satuan: 'sak', faktor: 1, isi_info: null, harga_jual: 68000 }] },
-        { id: 8, jenis_barang_id: 3, nama_barang: 'Gula Pasir 1kg', harga_jual: 16000, satuan: 'kg', stok: { 1: 50, 2: 10 }, units: [{ level: 1, satuan: 'kg', faktor: 1, isi_info: null, harga_jual: 16000 }, { level: 2, satuan: 'karung', faktor: 50, isi_info: '1 karung = 50 kg', harga_jual: 750000 }] },
-        { id: 9, jenis_barang_id: 3, nama_barang: 'Minyak Goreng 1L', harga_jual: 19000, satuan: 'btl', stok: { 1: 45, 2: 6 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 19000 }, { level: 2, satuan: 'dus', faktor: 12, isi_info: '1 dus = 12 btl', harga_jual: 220000 }] },
-        { id: 10, jenis_barang_id: 4, nama_barang: 'Pulpen Hitam', harga_jual: 3000, satuan: 'pcs', stok: { 1: 80, 2: 30 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 3000 }, { level: 2, satuan: 'box', faktor: 12, isi_info: '1 box = 12 pcs', harga_jual: 33000 }] },
-        { id: 11, jenis_barang_id: 4, nama_barang: 'Buku Tulis 38 lbr', harga_jual: 5000, satuan: 'pcs', stok: { 1: 60, 2: 20 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 5000 }, { level: 2, satuan: 'pack', faktor: 10, isi_info: '1 pack = 10 pcs', harga_jual: 45000 }] },
-        { id: 12, jenis_barang_id: 4, nama_barang: 'Spidol Papan Tulis', harga_jual: 9000, satuan: 'pcs', stok: { 1: 20, 2: 4 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 9000 }] },
+        { id: 1, jenis_barang_id: 1, nama_barang: 'Kopi Susu Botol', barcode: '8991001000101', nomer_seri: 'MNM-0001', harga_jual: 8000, satuan: 'btl', stok: { 1: 40, 2: 12 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 8000 }, { level: 2, satuan: 'dus', faktor: 24, isi_info: '1 dus = 24 btl', harga_jual: 180000 }] },
+        { id: 2, jenis_barang_id: 1, nama_barang: 'Teh Tarik Kotak', barcode: '8991001000202', nomer_seri: 'MNM-0002', harga_jual: 6500, satuan: 'pcs', stok: { 1: 25, 2: 8 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 6500 }, { level: 2, satuan: 'pack', faktor: 10, isi_info: '1 pack = 10 pcs', harga_jual: 60000 }] },
+        { id: 3, jenis_barang_id: 1, nama_barang: 'Air Mineral 600ml', barcode: '8991001000303', nomer_seri: 'MNM-0003', harga_jual: 4000, satuan: 'btl', stok: { 1: 100, 2: 24 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 4000 }, { level: 2, satuan: 'dus', faktor: 24, isi_info: '1 dus = 24 btl', harga_jual: 90000 }] },
+        { id: 4, jenis_barang_id: 2, nama_barang: 'Indomie Goreng', barcode: '8991001000404', nomer_seri: 'MKN-0001', harga_jual: 3500, satuan: 'pcs', stok: { 1: 200, 2: 40 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 3500 }, { level: 2, satuan: 'dus', faktor: 40, isi_info: '1 dus = 40 pcs', harga_jual: 135000 }] },
+        { id: 5, jenis_barang_id: 2, nama_barang: 'Roti Sobek Coklat', barcode: '8991001000505', nomer_seri: 'MKN-0002', harga_jual: 12000, satuan: 'pcs', stok: { 1: 15, 2: 5 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 12000 }] },
+        { id: 6, jenis_barang_id: 2, nama_barang: 'Biskuit Kaleng', barcode: '8991001000606', nomer_seri: 'MKN-0003', harga_jual: 25000, satuan: 'klg', stok: { 1: 10, 2: 2 }, units: [{ level: 1, satuan: 'klg', faktor: 1, isi_info: null, harga_jual: 25000 }] },
+        { id: 7, jenis_barang_id: 3, nama_barang: 'Beras 5kg', barcode: '8991001000707', nomer_seri: 'SBK-0001', harga_jual: 68000, satuan: 'sak', stok: { 1: 30, 2: 0 }, units: [{ level: 1, satuan: 'sak', faktor: 1, isi_info: null, harga_jual: 68000 }] },
+        { id: 8, jenis_barang_id: 3, nama_barang: 'Gula Pasir 1kg', barcode: '8991001000808', nomer_seri: 'SBK-0002', harga_jual: 16000, satuan: 'kg', stok: { 1: 50, 2: 10 }, units: [{ level: 1, satuan: 'kg', faktor: 1, isi_info: null, harga_jual: 16000 }, { level: 2, satuan: 'karung', faktor: 50, isi_info: '1 karung = 50 kg', harga_jual: 750000 }] },
+        { id: 9, jenis_barang_id: 3, nama_barang: 'Minyak Goreng 1L', barcode: '8991001000909', nomer_seri: 'SBK-0003', harga_jual: 19000, satuan: 'btl', stok: { 1: 45, 2: 6 }, units: [{ level: 1, satuan: 'btl', faktor: 1, isi_info: null, harga_jual: 19000 }, { level: 2, satuan: 'dus', faktor: 12, isi_info: '1 dus = 12 btl', harga_jual: 220000 }] },
+        { id: 10, jenis_barang_id: 4, nama_barang: 'Pulpen Hitam', barcode: '8991001001010', nomer_seri: 'ATK-0001', harga_jual: 3000, satuan: 'pcs', stok: { 1: 80, 2: 30 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 3000 }, { level: 2, satuan: 'box', faktor: 12, isi_info: '1 box = 12 pcs', harga_jual: 33000 }] },
+        { id: 11, jenis_barang_id: 4, nama_barang: 'Buku Tulis 38 lbr', barcode: '8991001001111', nomer_seri: 'ATK-0002', harga_jual: 5000, satuan: 'pcs', stok: { 1: 60, 2: 20 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 5000 }, { level: 2, satuan: 'pack', faktor: 10, isi_info: '1 pack = 10 pcs', harga_jual: 45000 }] },
+        { id: 12, jenis_barang_id: 4, nama_barang: 'Spidol Papan Tulis', barcode: '8991001001212', nomer_seri: 'ATK-0003', harga_jual: 9000, satuan: 'pcs', stok: { 1: 20, 2: 4 }, units: [{ level: 1, satuan: 'pcs', faktor: 1, isi_info: null, harga_jual: 9000 }] },
     ],
 };
 
@@ -75,7 +75,10 @@ export async function getBarang() {
             if (res.ok) {
                 const fresh = await res.json();
                 if (fresh && fresh.barang) {
-                    window.KASIR_DATA = fresh;
+                    // Gabungkan data segar ke data lama — jangan menimpa seluruh
+                    // window.KASIR_DATA karena field karyawan/kasirList/toko hanya
+                    // ada di suntikan awal (index) dan tidak dikirim oleh /kasir/data.
+                    window.KASIR_DATA = { ...window.KASIR_DATA, ...fresh };
                     return fresh.barang;
                 }
             }
@@ -122,6 +125,36 @@ export async function getRiwayat(tanggal, { limit, before, kasir, gudang_id, met
     }
     if (!res.ok) {
         throw new Error(`Gagal memuat riwayat (${res.status})`);
+    }
+    return res.json();
+}
+
+/**
+ * Verifikasi password untuk cetak ulang struk. POST /kasir/riwayat/{id}/cetak.
+ * Password dicek di server terhadap password user yang sedang login.
+ */
+export async function verifikasiCetakUlang(penjualanId, password) {
+    if (USE_MOCK) {
+        await new Promise((r) => setTimeout(r, 300));
+        if (password !== 'kasir123') {
+            throw new Error('Password salah! Silakan coba lagi.');
+        }
+        throw new Error('Mode simulasi tidak menyimpan riwayat transaksi');
+    }
+
+    const res = await fetch(`/kasir/riwayat/${penjualanId}/cetak`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        },
+        body: JSON.stringify({ password }),
+    });
+
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message ?? `Gagal verifikasi (${res.status})`);
     }
     return res.json();
 }

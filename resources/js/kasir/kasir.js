@@ -11,6 +11,7 @@ import {
     getGudang,
     getRiwayat,
     simpanPenjualan,
+    verifikasiCetakUlang,
     USE_MOCK,
 } from './api.js';
 
@@ -35,6 +36,12 @@ const state = {
 };
 
 const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+
+let searchRenderTimer = null;
+function scheduleRenderProduk() {
+    clearTimeout(searchRenderTimer);
+    searchRenderTimer = setTimeout(() => renderProduk(), 180);
+}
 
 const TOKO_DEFAULT = { nama: 'Toko PKL', alamat: '', kontak: '' };
 
@@ -219,6 +226,8 @@ function hapusItem(barangId) {
 
 let pendingHapusId = null;
 let pendingNontunaiPayload = null;
+let pendingDiskonPayload = null;
+const DISKON_BESAR_PERSEN = 30;
 
 function mintaHapusItem(barangId) {
     const item = state.cart.find((i) => i.barang_id === barangId);
@@ -267,6 +276,7 @@ function resetTransaksi() {
     state.isUangPas = false;
     state.jenisPembayaran = 'tunai';
     state.bankTransfer = 'BCA';
+    bonusToastShown.clear();
     document.querySelectorAll('input[name="bank_transfer"]').forEach((radio) => {
         radio.checked = radio.value === 'BCA';
     });
@@ -321,6 +331,12 @@ async function prosesBayar() {
         return;
     }
     const payload = buildPayload();
+
+    // Diskon nota besar butuh konfirmasi tambahan sebelum simpan.
+    if (state.diskonTransaksi > DISKON_BESAR_PERSEN) {
+        bukaModalKonfirmasiDiskon(payload);
+        return;
+    }
 
     // QRIS & Transfer butuh konfirmasi "dana sudah diterima" sebelum simpan.
     if (state.jenisPembayaran !== 'tunai') {
@@ -381,19 +397,73 @@ function tutupModalKonfirmasiNontunai() {
     document.getElementById('modal-konfirmasi-nontunai')?.classList.add('hidden');
 }
 
+function bukaModalKonfirmasiDiskon(payload) {
+    pendingDiskonPayload = payload;
+    const labelPersen = document.getElementById('label-diskon-persen');
+    const labelNominal = document.getElementById('label-diskon-nominal');
+    if (labelPersen) labelPersen.textContent = `${state.diskonTransaksi}%`;
+    if (labelNominal) labelNominal.textContent = rupiah(nominalDiskon());
+    document.getElementById('modal-konfirmasi-diskon')?.classList.remove('hidden');
+    document.getElementById('btn-konfirmasi-diskon')?.focus();
+}
+
+function tutupModalKonfirmasiDiskon() {
+    pendingDiskonPayload = null;
+    document.getElementById('modal-konfirmasi-diskon')?.classList.add('hidden');
+}
+
+/**
+ * Setelah konfirmasi diskon besar, lanjut ke alur normal:
+ * non-tunai → modal konfirmasi pembayaran, tunai → simpan langsung.
+ */
+async function lanjutkanTransaksi(payload) {
+    if (payload.jenis_pembayaran !== 'tunai') {
+        bukaModalKonfirmasiNontunai(payload);
+        return;
+    }
+    await simpanTransaksi(payload);
+}
+
 async function simpanTransaksi(payload) {
     const btn = document.getElementById('btn-bayar');
     if (btn) {
+        btn.dataset.saving = '1';
         btn.disabled = true;
         btn.textContent = 'Menyimpan...';
     }
 
     try {
         const saved = await simpanPenjualan(payload);
-        tampilkanStruk({ ...payload, nomer_nota: saved.nomer_nota, kembalian: saved.kembalian ?? payload.kembalian, jam: formatJamWib(saved.created_at), bank_transfer: state.bankTransfer });
-        muatRingkasanHari();
-        for (const d of payload.details) {
-            const b = state.barang.find((x) => x.id === d.barang_id);
+        const savedDetails = Array.isArray(saved.details) ? saved.details : [];
+
+        // Struk & stok lokal pakai detail yang BENAR-BENAR tersimpan di server
+        // (server bisa melewati item bonus yang stoknya kurang).
+        const detailsStruk = savedDetails.map((d) => ({
+            barang_id: d.barang_id,
+            nama_barang: d.barang?.nama_barang
+                ?? state.barang.find((x) => Number(x.id) === Number(d.barang_id))?.nama_barang
+                ?? '-',
+            gudang_id: d.gudang_id,
+            satuan: d.satuan,
+            jumlah: d.jumlah,
+            harga: d.harga,
+            harga_asli: d.harga,
+            diskon: d.diskon,
+            subtotal: d.subtotal,
+            is_bonus: !!d.is_bonus,
+        }));
+
+        tampilkanStruk({
+            ...payload,
+            ...saved,
+            details: detailsStruk,
+            nomer_nota: saved.nomer_nota,
+            kembalian: saved.kembalian ?? payload.kembalian,
+            jam: formatJamWib(saved.created_at),
+            bank_transfer: state.bankTransfer,
+        });
+        for (const d of savedDetails) {
+            const b = state.barang.find((x) => Number(x.id) === Number(d.barang_id));
             const units = b ? getUnitsForBarang(b) : [];
             const uObj = units.find((u) => u.satuan === d.satuan);
             const faktor = uObj ? uObj.faktor : 1;
@@ -405,9 +475,11 @@ async function simpanTransaksi(payload) {
         renderCart();
     } finally {
         if (btn) {
+            delete btn.dataset.saving;
             btn.disabled = false;
             btn.textContent = 'Bayar';
         }
+        renderCart();
     }
 }
 
@@ -421,6 +493,25 @@ function escapeHtml(value) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
+}
+
+function highlightMatch(text, q) {
+    const query = (q ?? '').trim();
+    if (!query) return escapeHtml(text);
+    const hay = text.toLowerCase();
+    const needle = query.toLowerCase();
+    if (!hay.includes(needle)) return escapeHtml(text);
+    let result = '';
+    let cursor = 0;
+    let from = hay.indexOf(needle);
+    while (from !== -1) {
+        result += escapeHtml(text.slice(cursor, from));
+        result += `<mark class="bg-amber-100 text-zinc-900 rounded-[3px] px-0.5">${escapeHtml(text.slice(from, from + needle.length))}</mark>`;
+        cursor = from + needle.length;
+        from = hay.indexOf(needle, cursor);
+    }
+    result += escapeHtml(text.slice(cursor));
+    return result;
 }
 
 function tampilkanStruk(payload) {
@@ -484,9 +575,14 @@ function tampilkanStruk(payload) {
         const dateStr = payload.tanggal ? formatTanggalRupiah(payload.tanggal) : '';
         const fullDateTime = `${dateStr || payload.tanggal}${payload.jam ? ` ${escapeHtml(payload.jam)}` : ''}`;
 
+        const alamatHtml = toko.alamat ? `<p class="text-xs text-zinc-700 font-normal mt-0.5">${escapeHtml(toko.alamat)}</p>` : '';
+        const kontakHtml = toko.kontak ? `<p class="text-xs text-zinc-700 font-normal mt-0.5">${escapeHtml(toko.kontak)}</p>` : '';
+
         body.innerHTML = `
             <div class="text-center font-sans">
                 <h2 class="font-bold text-base text-zinc-900 tracking-tight">${escapeHtml(toko.nama || 'Toko PKL')}</h2>
+                ${alamatHtml}
+                ${kontakHtml}
                 <p class="text-xs text-zinc-700 font-normal mt-0.5">${escapeHtml(gudangNama)}</p>
                 <p class="text-xs text-zinc-700 font-normal mt-0.5">Nota: ${escapeHtml(payload.nomer_nota)} &bull; ${escapeHtml(fullDateTime)}</p>
                 <p class="text-xs text-zinc-700 font-normal mt-0.5">Kasir: ${escapeHtml(namaKasir)}</p>
@@ -540,7 +636,7 @@ function tampilkanStruk(payload) {
 
             <div class="border-b border-dashed border-zinc-400 my-4"></div>
 
-            <p class="text-center text-xs text-zinc-400 font-normal my-4">Terima kasih atas kunjungan Anda</p>
+            <p class="text-center text-xs text-zinc-500 font-normal my-4">Terima kasih atas kunjungan Anda</p>
         `;
     }
     document.getElementById('modal-struk')?.classList.remove('hidden');
@@ -594,67 +690,6 @@ function updateJamHeader() {
     if (elTanggal) elTanggal.textContent = tanggal;
 }
 
-async function muatRingkasanHari() {
-    const elTotal = document.getElementById('omzet-hari-ini-total');
-    const elLabel = document.getElementById('omzet-hari-ini-label');
-    if (!elTotal && !elLabel) return;
-    try {
-        const res = await getRiwayat(tanggalHariIni(), { limit: 1 });
-        const s = res?.summary ?? { jumlah: 0, total_neto: 0 };
-        if (elTotal) elTotal.textContent = rupiah(s.total_neto ?? 0);
-        if (elLabel) elLabel.textContent = `${s.jumlah ?? 0} transaksi hari ini`;
-    } catch (e) {
-        // abaikan, biarkan tampilan default
-    }
-}
-
-const ANGKA_SATUAN = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
-
-function terbilang(n) {
-    n = Math.floor(Number(n) || 0);
-    if (n === 0) return 'nol rupiah';
-
-    const skala = [
-        [1e12, 'triliun'],
-        [1e9, 'miliar'],
-        [1e6, 'juta'],
-        [1e3, 'ribu'],
-        [1, ''],
-    ];
-
-    const sebutBawah100 = (x) => {
-        if (x >= 100) {
-            const r = Math.floor(x / 100);
-            const s = x % 100;
-            let t = r === 1 ? 'seratus' : `${ANGKA_SATUAN[r]} ratus`;
-            if (s > 0) t += ' ' + sebutBawah100(s);
-            return t;
-        }
-        if (x >= 20) {
-            const p = Math.floor(x / 10);
-            const s = x % 10;
-            return `${ANGKA_SATUAN[p]} puluh${s > 0 ? ' ' + ANGKA_SATUAN[s] : ''}`;
-        }
-        if (x === 10) return 'sepuluh';
-        if (x === 11) return 'sebelas';
-        if (x >= 12 && x < 20) return `${ANGKA_SATUAN[x - 10]} belas`;
-        return ANGKA_SATUAN[x] || '';
-    };
-
-    const hasil = [];
-    for (const [nilai, nama] of skala) {
-        if (n >= nilai) {
-            const part = Math.floor(n / nilai);
-            n %= nilai;
-            const teks = nilai === 1000 && part === 1
-                ? 'seribu'
-                : sebutBawah100(part) + (nama ? ' ' + nama : '');
-            hasil.push(teks);
-        }
-    }
-    return hasil.join(' ') + ' rupiah';
-}
-
 let riwayatTanggalAktif = null;
 let riwayatReqId = 0;
 const RIWAYAT_BATCH = 50;
@@ -685,7 +720,7 @@ function templateRiwayatItem(r) {
     return `<div class="flex items-center justify-between gap-3 py-3 px-2">
         <div class="min-w-0">
             <p class="text-sm font-bold text-zinc-900 truncate">${escapeHtml(r.nomer_nota)}</p>
-            <p class="text-[11px] text-zinc-400 mt-0.5">
+            <p class="text-[11px] text-zinc-500 mt-0.5">
                 ${escapeHtml(r.jam)} · ${escapeHtml(r.nama_kasir)} · ${r.jumlah_item} item · ${escapeHtml(r.gudang)}
             </p>
         </div>
@@ -702,7 +737,19 @@ function templateRiwayatItem(r) {
 
 function setRiwayatLebih(visible) {
     const btn = document.getElementById('btn-riwayat-lebih');
-    if (btn) btn.classList.toggle('hidden', !visible);
+    if (btn) {
+        btn.classList.toggle('hidden', !visible);
+        btn.disabled = false;
+        btn.textContent = 'Muat lebih banyak';
+    }
+}
+
+function setRiwayatLebihLoading() {
+    const btn = document.getElementById('btn-riwayat-lebih');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Memuat…';
+    }
 }
 
 function renderRiwayatSummary(summary) {
@@ -734,6 +781,8 @@ async function muatRiwayat(tanggal, append = false) {
         kosong?.classList.add('hidden');
         setRiwayatLebih(false);
         pemuatan?.classList.remove('hidden');
+    } else {
+        setRiwayatLebihLoading();
     }
 
     const labelTeks = tanggal
@@ -775,6 +824,7 @@ async function muatRiwayat(tanggal, append = false) {
         pemuatan?.classList.add('hidden');
         pemuatan.textContent = e.message ?? 'Gagal memuat riwayat';
         pemuatan.classList.remove('hidden');
+        setRiwayatLebih(true);
     }
 }
 
@@ -818,7 +868,7 @@ async function refreshStokSilent() {
     const ae = document.activeElement;
     if (ae && ['INPUT', 'TEXTAREA', 'SELECT'].includes(ae.tagName)) return;
     if (ae && (ae.hasAttribute?.('data-add') || ae.closest?.('[data-add]'))) return;
-    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+    const modalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-konfirmasi-diskon', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
         const el = document.getElementById(id);
         return el && !el.classList.contains('hidden');
     });
@@ -863,44 +913,50 @@ function tutupModalPasswordCetak() {
     if (input) input.value = '';
 }
 
-function verifikasiPasswordCetak(e) {
+async function verifikasiPasswordCetak(e) {
     if (e) e.preventDefault();
     const input = document.getElementById('input-password-cetak');
     const pw = input ? input.value.trim() : '';
     const errEl = document.getElementById('error-password-cetak');
+    const idToPrint = pendingCetakPenjualanId;
 
-    if (pw !== 'kasir123') {
+    if (!idToPrint) {
+        tutupModalPasswordCetak();
+        return;
+    }
+
+    try {
+        const data = await verifikasiCetakUlang(idToPrint, pw);
+        tutupModalPasswordCetak();
+        cetakUlangRiwayat(data);
+    } catch (err) {
         if (errEl) {
-            errEl.textContent = 'Password salah! Silakan coba lagi.';
+            errEl.textContent = err.message ?? 'Password salah! Silakan coba lagi.';
             errEl.classList.remove('hidden');
         }
         if (input) {
             input.focus();
             input.select();
         }
-        return;
-    }
-
-    const idToPrint = pendingCetakPenjualanId;
-    tutupModalPasswordCetak();
-    if (idToPrint) {
-        cetakUlangRiwayat(idToPrint);
     }
 }
 
-function cetakUlangRiwayat(penjualanId) {
-    const r = riwayatCache.find((x) => String(x.id) === String(penjualanId));
+function cetakUlangRiwayat(r) {
     if (!r) {
         toast('Nota tidak ditemukan', true);
         return;
     }
     tampilkanStruk({
-        gudang_id: state.gudangId,
+        gudang_id: r.gudang_id ?? state.gudangId,
         nama_gudang: r.gudang,
         tanggal: r.tanggal,
         total: r.total,
         diskon: r.diskon,
-        diskon_persen: 0,
+        diskon_persen: r.diskon_persen ?? (
+            r.diskon > 0 && r.neto > 0
+                ? Math.round((Number(r.diskon) / (Number(r.diskon) + Number(r.neto))) * 100)
+                : 0
+        ),
         neto: r.neto,
         subtotal_normal: r.details.reduce((s, d) => s + Number(d.harga || 0) * Number(d.jumlah || 0), 0),
         potongan_barang: r.details.reduce((s, d) => s + Number(d.diskon || 0), 0),
@@ -948,6 +1004,9 @@ let skipClick = false;
 let gudangSetValue = null;
 let cartIdx = -1;
 let panduanPrevFocus = null;
+let allowUnload = false;
+let prevCartCount = 0;
+const bonusToastShown = new Set();
 
 function barangTampil() {
     const q = state.search.toLowerCase();
@@ -956,7 +1015,9 @@ function barangTampil() {
         if (q) {
             const namaMatch = b.nama_barang.toLowerCase().includes(q);
             const kodeMatch = inisial(b.nama_barang).toLowerCase() === q;
-            if (!namaMatch && !kodeMatch) return false;
+            const barcodeMatch = String(b.barcode ?? '').toLowerCase().includes(q);
+            const nomerSeriMatch = String(b.nomer_seri ?? '').toLowerCase().includes(q);
+            if (!namaMatch && !kodeMatch && !barcodeMatch && !nomerSeriMatch) return false;
         }
         return true;
     });
@@ -997,8 +1058,8 @@ function renderProduk() {
 
     if (list.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-20">
-            <p class="text-sm font-semibold text-zinc-500">Barang tidak ditemukan</p>
-            <p class="text-xs text-zinc-400 mt-1">Coba kata kunci atau kategori lain</p>
+            <p class="text-sm font-semibold text-zinc-600">Barang tidak ditemukan</p>
+            <p class="text-xs text-zinc-500 mt-1">Coba kata kunci atau kategori lain</p>
         </div>`;
         return;
     }
@@ -1037,13 +1098,13 @@ function renderProduk() {
                         ${inisial(b.nama_barang)}
                     </div>
                     <span class="text-[11px] font-semibold whitespace-nowrap px-2 py-0.5 rounded-full
-                        ${habis ? 'bg-red-50 text-red-500' : menipis ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-400'}">
+                        ${habis ? 'bg-red-50 text-red-500' : menipis ? 'bg-amber-50 text-amber-600' : 'bg-zinc-50 text-zinc-500'}">
                         ${habis ? 'Habis' : `${stok} ${b.satuan ?? ''}`}
                     </span>
                 </div>
                 <div>
-                    <p class="font-bold text-sm leading-snug line-clamp-2">${b.nama_barang}</p>
-                    <p class="font-black tracking-tight tabular-nums mt-1.5">${rupiah(b.harga_jual)} <span class="text-xs font-normal text-zinc-400">/ ${defaultUnit}</span></p>
+                    <p class="font-bold text-sm leading-snug line-clamp-2">${highlightMatch(b.nama_barang, state.search)}</p>
+                    <p class="font-black tracking-tight tabular-nums mt-1.5">${rupiah(b.harga_jual)} <span class="text-xs font-normal text-zinc-500">/ ${defaultUnit}</span></p>
                 </div>
             </button>`;
         })
@@ -1095,9 +1156,14 @@ function applyPromoBonusRules() {
 
                 const stokTersediaBonus = stokTersedia(barangBonus);
                 if (stokTersediaBonus <= 0) {
-                    toast(`Stok barang bonus ${barangBonus.nama_barang} di gudang ini habis`, true);
+                    const keyToast = `${promo.id}-${barangBonus.id}`;
+                    if (!bonusToastShown.has(keyToast)) {
+                        bonusToastShown.add(keyToast);
+                        toast(`Stok barang bonus ${barangBonus.nama_barang} di gudang ini habis`, true);
+                    }
                     return;
                 }
+                bonusToastShown.delete(`${promo.id}-${barangBonus.id}`);
 
                 bonusToAdd.push({
                     barang_id: barangBonus.id,
@@ -1187,6 +1253,12 @@ function renderCart() {
     if (cartIdx >= state.cart.length) cartIdx = state.cart.length - 1;
     if (state.cart.length === 0) cartIdx = -1;
 
+    // Buka otomatis panel pembayaran saat item PERTAMA masuk keranjang
+    if (state.cart.length > 0 && prevCartCount === 0 && !state.paymentExpanded) {
+        togglePaymentDetails(true);
+    }
+    prevCartCount = state.cart.length;
+
     if (state.cart.length === 0) {
         wrap.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center py-16 px-4">
             <svg class="w-10 h-10 text-zinc-200 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1195,8 +1267,8 @@ function renderCart() {
                 <path d="M17 17h-11v-14h-2"/>
                 <path d="M6 5l14 1l-1 7h-13"/>
             </svg>
-            <p class="text-sm font-bold text-zinc-500">Belum ada pesanan</p>
-            <p class="text-xs text-zinc-400 mt-1">Pilih produk di sebelah kiri</p>
+            <p class="text-sm font-bold text-zinc-600">Belum ada pesanan</p>
+            <p class="text-xs text-zinc-500 mt-1">Pilih produk di sebelah kiri</p>
         </div>`;
     } else {
         wrap.innerHTML = state.cart
@@ -1206,7 +1278,7 @@ function renderCart() {
                         <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center gap-1.5 min-w-0 flex-1">
                                 <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300/80 px-1.5 py-0.5 rounded-md shrink-0">[BONUS]</span>
-                                <p class="text-xs font-bold text-zinc-900 leading-snug truncate" title="${i.nama_barang}">${i.nama_barang}</p>
+                                <p class="text-xs font-bold text-zinc-900 leading-snug truncate" title="${escapeHtml(i.nama_barang)}">${escapeHtml(i.nama_barang)}</p>
                             </div>
                         </div>
                         <div class="flex items-center justify-between gap-2 text-xs">
@@ -1230,7 +1302,7 @@ function renderCart() {
                                 ? 'bg-zinc-900 text-white font-bold shadow-xs'
                                 : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 font-semibold'
                             }">
-                            <span class="truncate">${u.satuan} <span class="${active ? 'text-zinc-300 font-normal' : 'text-zinc-400 font-normal'}">(${rupiah(u.harga_jual)})</span></span>
+                            <span class="truncate">${u.satuan} <span class="${active ? 'text-zinc-300 font-normal' : 'text-zinc-500 font-normal'}">(${rupiah(u.harga_jual)})</span></span>
                             ${active ? checkIcon : ''}
                         </button>`;
                     })
@@ -1242,7 +1314,7 @@ function renderCart() {
                     ${cartIdx === idx ? '<span class="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r-full bg-zinc-900"></span>' : ''}
                     <div class="flex items-start justify-between gap-2">
                         ${cartIdx === idx ? `<span class="shrink-0 mt-0.5 text-[10px] font-bold bg-zinc-900 text-white rounded-md px-1.5 py-0.5 tabular-nums">${idx + 1}/${state.cart.length}</span>` : ''}
-                        <p class="text-sm font-bold text-zinc-900 leading-snug truncate flex-1" title="${i.nama_barang}">${i.nama_barang}</p>
+                        <p class="text-sm font-bold text-zinc-900 leading-snug truncate flex-1" title="${escapeHtml(i.nama_barang)}">${escapeHtml(i.nama_barang)}</p>
                         <button data-del="${i.barang_id}" type="button" class="text-zinc-300 hover:text-red-600 font-bold px-1 transition-colors cursor-pointer text-base leading-none shrink-0" title="Hapus item">×</button>
                     </div>
                     <div class="flex items-center justify-between gap-2">
@@ -1269,7 +1341,7 @@ function renderCart() {
                         <p class="text-xs font-bold text-zinc-900 tabular-nums text-right shrink-0 min-w-[70px]">${rupiah(subtotalItem(i))}</p>
                     </div>
                     <div class="flex items-center justify-between gap-2 pt-0.5">
-                        <span class="text-[11px] text-zinc-400 tabular-nums font-medium">
+                        <span class="text-[11px] text-zinc-500 tabular-nums font-medium">
                             ${i.jumlah} ${selectedUnitObj.satuan} × ${rupiah(currentHarga)}
                         </span>
                         ${Number(i.diskon || 0) > 0
@@ -1321,6 +1393,22 @@ function renderCart() {
         }
     }
 
+    const potonganBarang = totalPotonganBarang();
+    const rowPotonganBarang = document.getElementById('row-potongan-barang');
+    const lblPotonganBarang = document.getElementById('lbl-potongan-barang');
+    if (rowPotonganBarang && lblPotonganBarang) {
+        rowPotonganBarang.classList.toggle('hidden', potonganBarang <= 0);
+        if (potonganBarang > 0) lblPotonganBarang.textContent = `- ${rupiah(potonganBarang)}`;
+    }
+
+    const potonganNota = nominalDiskon();
+    const rowDiskonNota = document.getElementById('row-diskon-nota');
+    const lblDiskonNota = document.getElementById('lbl-diskon-nota');
+    if (rowDiskonNota && lblDiskonNota) {
+        rowDiskonNota.classList.toggle('hidden', potonganNota <= 0);
+        if (potonganNota > 0) lblDiskonNota.textContent = `- ${rupiah(potonganNota)}`;
+    }
+
     if (state.isUangPas) {
         state.bayar = totalNeto();
     }
@@ -1332,7 +1420,10 @@ function renderCart() {
     if (inputBayar && document.activeElement !== inputBayar) inputBayar.value = state.bayar ? state.bayar.toLocaleString('id-ID') : '';
 
     const btnUangPas = document.getElementById('btn-uang-pas');
-    if (btnUangPas) btnUangPas.textContent = `Uang pas (${rupiah(totalNeto())})`;
+    if (btnUangPas) {
+        btnUangPas.innerHTML = `<span class="block leading-tight">Uang pas</span><span class="block text-[10px] font-normal text-zinc-500 mt-0.5">${rupiah(totalNeto())}</span>`;
+        btnUangPas.title = `Set uang bayar pas ${rupiah(totalNeto())}`;
+    }
 
     const lblKembalian = document.getElementById('lbl-kembalian');
     if (lblKembalian) {
@@ -1358,13 +1449,13 @@ function renderCart() {
             let kiri, kanan;
             if (bayarTunai) {
                 const kurang = state.bayar < totalNeto();
-                kiri = kurang ? `<span class="text-red-600 font-bold">Kurang</span>` : `<span class="text-zinc-500">Kembalian</span>`;
+                kiri = kurang ? `<span class="text-red-600 font-bold">Kurang</span>` : `<span class="text-zinc-600">Kembalian</span>`;
                 kanan = `<span class="${kurang ? 'text-red-600' : 'text-emerald-600'} font-bold">${kurang ? rupiah(totalNeto() - state.bayar) : rupiah(kembalian())}</span>`;
             } else {
                 const labelPembayaran = state.jenisPembayaran === 'transfer'
                     ? `Transfer ${state.bankTransfer}`
                     : state.jenisPembayaran.toUpperCase() === 'QRIS' ? 'QRIS' : 'Tunai';
-                kiri = `<span class="text-zinc-500">${labelPembayaran}</span>`;
+                kiri = `<span class="text-zinc-600">${labelPembayaran}</span>`;
                 kanan = `<span class="font-bold">${rupiah(totalNeto())}</span>`;
             }
             rangkuman.innerHTML = `<span>${kiri}</span><span>${kanan}</span>`;
@@ -1381,8 +1472,14 @@ function renderCart() {
     if (rowTransfer) rowTransfer.style.display = state.jenisPembayaran === 'transfer' ? '' : 'none';
 
     const btnBayar = document.getElementById('btn-bayar');
-    if (btnBayar && !btnBayar.disabled) {
-        btnBayar.textContent = state.cart.length > 0 ? `Bayar ${rupiah(totalNeto())}` : 'Bayar';
+    if (btnBayar) {
+        const kosong = state.cart.length === 0;
+        if (btnBayar.dataset.saving) {
+            btnBayar.disabled = true;
+        } else {
+            btnBayar.disabled = kosong;
+            btnBayar.textContent = kosong ? 'Bayar' : `Bayar ${rupiah(totalNeto())}`;
+        }
     }
 }
 
@@ -1401,15 +1498,33 @@ function fokusCartRow() {
     }
 }
 
+function indeksSeleksiPertama() {
+    return state.cart.findIndex((i) => !i.is_bonus);
+}
+
+function indeksSeleksiTerakhir() {
+    for (let i = state.cart.length - 1; i >= 0; i--) {
+        if (!state.cart[i].is_bonus) return i;
+    }
+    return -1;
+}
+
 function pindahCartIdx(delta) {
-    if (state.cart.length === 0) {
+    const selectable = state.cart
+        .map((i, idx) => (i.is_bonus ? -1 : idx))
+        .filter((idx) => idx >= 0);
+    if (selectable.length === 0) {
         cartIdx = -1;
         return;
     }
-    const next = cartIdx < 0
-        ? (delta > 0 ? 0 : state.cart.length - 1)
-        : Math.min(Math.max(cartIdx + delta, 0), state.cart.length - 1);
-    cartIdx = next;
+    const pos = selectable.indexOf(cartIdx);
+    let nextPos;
+    if (pos < 0) {
+        nextPos = delta > 0 ? 0 : selectable.length - 1;
+    } else {
+        nextPos = Math.min(Math.max(pos + delta, 0), selectable.length - 1);
+    }
+    cartIdx = selectable[nextPos];
     render();
     fokusCartRow();
 }
@@ -1420,9 +1535,10 @@ let toastTimer;
 function toast(msg, error = false) {
     const el = document.getElementById('toast');
     if (!el) return;
+    const teks = escapeHtml(msg ?? '');
     el.innerHTML = error
-        ? `<svg class="w-5 h-5 shrink-0 inline-block -mt-0.5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${msg}`
-        : msg;
+        ? `<svg class="w-5 h-5 shrink-0 inline-block -mt-0.5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${teks}`
+        : teks;
     el.className = `anim-toast fixed top-4 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-white text-sm font-semibold shadow-2xl z-50 max-w-lg w-full text-center
         ${error ? 'bg-red-600/95 backdrop-blur-xs ring-1 ring-red-400/30' : 'bg-zinc-900/95 backdrop-blur-xs'}`;
     el.classList.remove('hidden');
@@ -1487,7 +1603,7 @@ function setupDropdown(rootId, items, selectedValue, onChange, options = {}) {
 
     function renderMenu() {
         if (items.length === 0) {
-            menu.innerHTML = `<p class="text-xs text-zinc-400 px-3 py-2.5 whitespace-nowrap">Tidak ada data</p>`;
+            menu.innerHTML = `<p class="text-xs text-zinc-500 px-3 py-2.5 whitespace-nowrap">Tidak ada data</p>`;
             if (lblValue) lblValue.textContent = '-';
             return;
         }
@@ -1497,7 +1613,7 @@ function setupDropdown(rootId, items, selectedValue, onChange, options = {}) {
                 const badge = renderBadge ? renderBadge(it) : '';
                 return `<button type="button" role="option" aria-selected="${active}" data-dd-val="${it.value}" class="${active ? itemActive : itemIdle}">
                     <span class="truncate min-w-0">${it.label}</span>
-                    ${badge ? `<span class="shrink-0 text-[11px] font-bold whitespace-nowrap ${active ? 'text-zinc-300' : 'text-zinc-400'}">${badge}</span>` : ''}
+                    ${badge ? `<span class="shrink-0 text-[11px] font-bold whitespace-nowrap ${active ? 'text-zinc-300' : 'text-zinc-500'}">${badge}</span>` : ''}
                     ${active ? check : '<span class="w-3.5 shrink-0"></span>'}
                 </button>`;
             })
@@ -1733,9 +1849,8 @@ async function init() {
         document.getElementById('modal-konfirmasi-gudang')?.classList.add('hidden');
         if (pendingGudangId) {
             state.gudangId = pendingGudangId;
-            state.cart = [];
             highlightedIdx = -1;
-            render();
+            resetTransaksi();
             const targetGudang = state.gudang.find((g) => g.id === pendingGudangId);
             toast(`Berhasil pindah ke ${targetGudang?.nama_gudang ?? 'gudang terpilih'}`);
             pendingGudangId = null;
@@ -1755,6 +1870,28 @@ async function init() {
         if (e.target === e.currentTarget) tutupModalKonfirmasiNontunai();
     });
 
+    // Modal Konfirmasi Diskon Nota Besar
+    document.getElementById('btn-batal-diskon')?.addEventListener('click', tutupModalKonfirmasiDiskon);
+    document.getElementById('btn-konfirmasi-diskon')?.addEventListener('click', async () => {
+        const payload = pendingDiskonPayload;
+        tutupModalKonfirmasiDiskon();
+        if (payload) await lanjutkanTransaksi(payload);
+    });
+    document.getElementById('modal-konfirmasi-diskon')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) tutupModalKonfirmasiDiskon();
+    });
+
+    const modalDiskon = document.getElementById('modal-konfirmasi-diskon');
+    modalDiskon?.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const batal = document.getElementById('btn-batal-diskon');
+            const konfirmasi = document.getElementById('btn-konfirmasi-diskon');
+            e.preventDefault();
+            if (document.activeElement === batal) konfirmasi?.focus();
+            else batal?.focus();
+        }
+    });
+
     const modalGudang = document.getElementById('modal-konfirmasi-gudang');
     modalGudang?.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -1770,7 +1907,7 @@ async function init() {
     const wrapFilter = document.getElementById('filter-jenis');
     if (wrapFilter) {
         const chipActive = 'chip-jenis px-4 py-1.5 rounded-lg text-sm font-bold bg-white text-zinc-900 shadow-xs transition cursor-pointer';
-        const chipIdle = 'chip-jenis px-4 py-1.5 rounded-lg text-sm font-semibold text-zinc-500 hover:text-zinc-900 transition cursor-pointer';
+        const chipIdle = 'chip-jenis px-4 py-1.5 rounded-lg text-sm font-semibold text-zinc-600 hover:text-zinc-900 transition cursor-pointer';
         wrapFilter.innerHTML =
             `<button data-jenis="" class="${chipActive}" type="button">Semua</button>` +
             jenis
@@ -1797,17 +1934,19 @@ async function init() {
             state.search = e.target.value;
             highlightedIdx = -1;
             if (btnClearSearch) btnClearSearch.classList.toggle('hidden', state.search === '');
-            renderProduk();
+            scheduleRenderProduk();
         });
         inputSearch.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                clearTimeout(searchRenderTimer);
                 const list = barangTampil();
                 if (list.length > 0) {
                     tambahKeCart(list[0].id);
                 }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
+                clearTimeout(searchRenderTimer);
                 const list = barangTampil();
                 if (list.length > 0) {
                     highlightedIdx = 0;
@@ -1827,12 +1966,13 @@ async function init() {
                 inputSearch.focus();
             }
             btnClearSearch.classList.add('hidden');
+            clearTimeout(searchRenderTimer);
             renderProduk();
         });
     }
 
     document.addEventListener('keydown', (e) => {
-        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+        const adaModalTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-konfirmasi-diskon', 'modal-panduan-shortcut', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -1851,7 +1991,7 @@ async function init() {
             state.search = input.value;
             highlightedIdx = -1;
             if (clear) clear.classList.toggle('hidden', false);
-            renderProduk();
+            scheduleRenderProduk();
             input.focus();
             const len = input.value.length;
             input.setSelectionRange(len, len);
@@ -1946,7 +2086,8 @@ async function init() {
             const rowEl = e.target.closest('[data-cart-row]');
             if (rowEl) {
                 const idx = Number(rowEl.dataset.cartRow);
-                if (idx !== cartIdx) {
+                const row = state.cart[idx];
+                if (row && !row.is_bonus && idx !== cartIdx) {
                     cartIdx = idx;
                     render();
                 }
@@ -2028,6 +2169,7 @@ async function init() {
                 return;
             }
             if (cartIdx < 0 || cartIdx >= state.cart.length) return;
+            if (state.cart[cartIdx]?.is_bonus) return;
             const id = state.cart[cartIdx].barang_id;
 
             if (e.key === 'ArrowUp') {
@@ -2088,14 +2230,27 @@ async function init() {
     const inputBayar = document.getElementById('input-bayar');
     if (inputBayar) {
         inputBayar.addEventListener('input', (e) => {
-            let raw = e.target.value.replace(/\D/g, '');
+            const el = e.target;
+            const caret = el.selectionStart ?? el.value.length;
+            const digitsBeforeCaret = el.value.slice(0, caret).replace(/\D/g, '').length;
+            const raw = el.value.replace(/\D/g, '');
             if (raw !== '') {
-                let val = Number(raw);
-                e.target.value = val.toLocaleString('id-ID');
+                const val = Number(raw);
+                const formatted = val.toLocaleString('id-ID');
+                el.value = formatted;
                 state.bayar = val;
-                state.isUangPas = (val === totalNeto());
+                // Mengetik manual melepas kunci "uang pas" (jangan biarkan render menimpa ketikan).
+                state.isUangPas = false;
+                // Pulihkan posisi kursor mengikuti jumlah digit sebelum kursor sebelumnya.
+                let pos = 0;
+                let count = 0;
+                while (pos < formatted.length && count < digitsBeforeCaret) {
+                    if (/\d/.test(formatted[pos])) count++;
+                    pos++;
+                }
+                el.setSelectionRange(pos, pos);
             } else {
-                e.target.value = '';
+                el.value = '';
                 state.bayar = 0;
                 state.isUangPas = false;
             }
@@ -2112,6 +2267,7 @@ async function init() {
     document.querySelectorAll('input[name="jenis_pembayaran"]').forEach((radio) => {
         radio.addEventListener('change', (e) => {
             state.jenisPembayaran = e.target.value;
+            state.isUangPas = false;
             renderCart();
         });
     });
@@ -2335,7 +2491,7 @@ async function init() {
                 document.querySelectorAll('[data-dd-chevron], [data-custom-dd-chevron]').forEach((c) => c.classList.remove('rotate-180'));
                 return;
             }
-            const urutanModal = ['modal-struk', 'modal-password-cetak', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-riwayat'];
+            const urutanModal = ['modal-struk', 'modal-password-cetak', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-konfirmasi-diskon', 'modal-riwayat'];
             const terbuka = urutanModal.find((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
@@ -2350,6 +2506,10 @@ async function init() {
             }
             if (terbuka === 'modal-konfirmasi-nontunai') {
                 tutupModalKonfirmasiNontunai();
+                return;
+            }
+            if (terbuka === 'modal-konfirmasi-diskon') {
+                tutupModalKonfirmasiDiskon();
                 return;
             }
             if (terbuka === 'modal-struk') {
@@ -2391,7 +2551,7 @@ async function init() {
                 tutupPanduanShortcut();
                 return;
             }
-            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+            const adaModalLain = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-diskon', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
                 const el = document.getElementById(id);
                 return el && !el.classList.contains('hidden');
             });
@@ -2430,7 +2590,7 @@ async function init() {
             }
         }
 
-        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
+        const modalLainTerbuka = ['modal-struk', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-konfirmasi-diskon', 'modal-riwayat', 'modal-password-cetak'].some((id) => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
         });
@@ -2461,6 +2621,7 @@ async function init() {
             const idx = urutan.indexOf(state.jenisPembayaran);
             state.jenisPembayaran = urutan[(idx + 1) % urutan.length];
             state.bayar = 0;
+            state.isUangPas = false;
             document.querySelectorAll('input[name="jenis_pembayaran"]').forEach((radio) => {
                 radio.checked = radio.value === state.jenisPembayaran;
             });
@@ -2514,7 +2675,7 @@ async function init() {
                 toast('Keranjang masih kosong', true);
                 return;
             }
-            cartIdx = 0;
+            cartIdx = indeksSeleksiPertama();
             render();
             fokusCartRow();
             return;
@@ -2527,7 +2688,7 @@ async function init() {
                 toast('Keranjang masih kosong', true);
                 return;
             }
-            cartIdx = state.cart.length - 1;
+            cartIdx = indeksSeleksiTerakhir();
             render();
             fokusCartRow();
             return;
@@ -2545,7 +2706,7 @@ async function init() {
         document.getElementById('badge-mock')?.classList.remove('hidden');
     }
 
-    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-password-cetak'].forEach((id) => {
+    ['modal-struk', 'modal-riwayat', 'modal-konfirmasi-reset', 'modal-konfirmasi-gudang', 'modal-konfirmasi-hapus', 'modal-konfirmasi-nontunai', 'modal-konfirmasi-diskon', 'modal-password-cetak'].forEach((id) => {
         pasangFocusTrap(document.getElementById(id));
     });
 
@@ -2557,13 +2718,20 @@ async function init() {
     updateJamHeader();
     setInterval(updateJamHeader, 1000);
 
-    // ringkasan omzet hari ini
-    muatRingkasanHari();
-
     // drawer keranjang (mobile)
     document.getElementById('btn-buka-cart')?.addEventListener('click', bukaCart);
     document.getElementById('btn-tutup-cart')?.addEventListener('click', tutupCart);
     document.getElementById('backdrop-cart')?.addEventListener('click', tutupCart);
+
+    // Konfirmasi keluar/refresh bila masih ada pesanan belum dibayar
+    document.querySelector('form[action*="kasir/logout"]')?.addEventListener('submit', () => {
+        allowUnload = true;
+    });
+    window.addEventListener('beforeunload', (e) => {
+        if (allowUnload || state.cart.length === 0) return;
+        e.preventDefault();
+        e.returnValue = '';
+    });
 
     const inpAwal = document.getElementById('input-search');
     if (inpAwal) {
@@ -2580,7 +2748,7 @@ init().catch((e) => {
         loading.innerHTML = `
             <div class="flex-1 flex flex-col items-center justify-center gap-2 text-center px-6">
                 <p class="text-sm font-bold text-zinc-900">Gagal memuat data</p>
-                <p class="text-sm text-zinc-500">${e.message}</p>
+                <p class="text-sm text-zinc-600">${e.message}</p>
                 <button onclick="location.reload()"
                     class="mt-3 text-sm font-bold bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl px-5 py-2.5 transition">
                     Muat ulang

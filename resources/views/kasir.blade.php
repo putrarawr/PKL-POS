@@ -32,6 +32,9 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 99px; }
         ::-webkit-scrollbar-track { background: transparent; }
+        @media (max-width: 1023.98px) {
+            #hint-cart-selected { display: none !important; }
+        }
 
         @media (prefers-reduced-motion: no-preference) {
             .anim-fade-up {
@@ -52,7 +55,8 @@
         @media print {
             body * { visibility: hidden; }
             #modal-struk, #modal-struk * { visibility: visible; }
-            #modal-struk { position: absolute; inset: 0; background: white; }
+            #modal-struk { position: absolute; inset: 0; background: white; overflow: visible; max-height: none; }
+            #modal-struk > div { max-height: none !important; overflow: visible !important; box-shadow: none !important; }
             #struk-actions { display: none !important; }
         }
     </style>
@@ -94,7 +98,7 @@
                 <div class="w-8 h-8 shrink-0 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-black text-sm select-none">K</div>
                 <div class="leading-tight hidden sm:block">
                     <h1 class="text-sm font-bold tracking-tight">Kasir</h1>
-                    <p class="text-[11px] font-medium text-zinc-400">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif {{ $kasirData['toko']['nama'] ?? 'Toko PKL' }}</p>
+                    <p class="text-[11px] font-medium text-zinc-500">@if(isset($kasirData['karyawan'])) {{ $kasirData['karyawan']['nama'] }} • @endif {{ $kasirData['toko']['nama'] ?? 'Toko PKL' }}</p>
                 </div>
             </div>
 
@@ -108,7 +112,7 @@
             {{-- Jam & tanggal berjalan --}}
             <div id="jam-header" class="hidden xl:flex flex-col items-end leading-tight mr-4">
                 <span id="jam-header-time" class="text-sm font-black tracking-tight tabular-nums"></span>
-                <span id="jam-header-date" class="text-[11px] font-medium text-zinc-400"></span>
+                <span id="jam-header-date" class="text-[11px] font-medium text-zinc-500"></span>
             </div>
 
             <div class="flex items-center gap-3">
@@ -124,8 +128,8 @@
                 </div>
 
                 {{-- Tombol Panduan Shortcut --}}
-                <button id="btn-panduan-shortcut" type="button" title="Panduan shortcut (?)"
-                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                <button id="btn-panduan-shortcut" type="button" title="Panduan shortcut (?)" aria-label="Panduan shortcut"
+                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
                     <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="6" width="20" height="12" rx="2"/>
                         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>
@@ -133,8 +137,8 @@
                 </button>
 
                 {{-- Tombol Riwayat Transaksi --}}
-                <button id="btn-riwayat" type="button" title="Riwayat transaksi"
-                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
+                <button id="btn-riwayat" type="button" title="Riwayat transaksi" aria-label="Riwayat transaksi"
+                    class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50 transition-all duration-200 cursor-pointer">
                     <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9 -9a9.75 9.75 0 0 0 -6.74 2.74l-2.26 -2"/>
                         <path d="M3 3v5h5"/>
@@ -145,8 +149,8 @@
                 {{-- Tombol Logout --}}
                 <form method="POST" action="{{ route('kasir.logout') }}">
                     @csrf
-                    <button type="submit" title="Logout"
-                        class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all duration-200 cursor-pointer">
+                    <button type="submit" title="Logout" aria-label="Logout"
+                        class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all duration-200 cursor-pointer">
                         <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2"/>
                             <path d="M9 12h12l-3 -3"/>
@@ -170,15 +174,15 @@
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/>
                         </svg>
-                        <input id="input-search" type="text" placeholder="Cari nama atau kode barang (cth: WT)"
-                            class="w-full h-12 border border-zinc-200 rounded-xl pl-11 pr-10 text-sm font-medium bg-white placeholder:text-zinc-400 placeholder:font-normal shadow-xs shadow-zinc-100 focus:outline-none focus:border-zinc-900 transition-colors">
-                        <button id="btn-clear-search" class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 text-zinc-400 hover:text-zinc-900 hidden flex items-center justify-center transition-colors">
+                        <input id="input-search" type="text" placeholder="Cari nama, kode, atau scan barcode"
+                            class="w-full h-12 border border-zinc-200 rounded-xl pl-11 pr-10 text-sm font-medium bg-white placeholder:text-zinc-500 placeholder:font-normal shadow-xs shadow-zinc-100 focus:outline-none focus:border-zinc-900 transition-colors">
+                        <button id="btn-clear-search" type="button" aria-label="Bersihkan pencarian" title="Bersihkan pencarian" class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 text-zinc-500 hover:text-zinc-900 hidden flex items-center justify-center transition-colors">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
                     </div>
 
                     <div id="filter-jenis" class="inline-flex flex-wrap w-fit gap-1 bg-zinc-200/60 rounded-xl p-1 mt-4 mb-4"></div>
-                    <div id="label-gudang-aktif" class="hidden mb-6 text-[11px] font-semibold text-zinc-400 flex items-center gap-1.5">
+                    <div id="label-gudang-aktif" class="hidden mb-6 text-[11px] font-semibold text-zinc-500 flex items-center gap-1.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
                         Stok dari: <span class="font-bold text-zinc-600" id="label-gudang-aktif-nama"></span>
                     </div>
@@ -193,8 +197,8 @@
                 class="fixed inset-y-0 right-0 z-30 w-[360px] max-w-[92vw] xl:w-[420px] shrink-0 bg-white border-l border-zinc-200 flex flex-col translate-x-full transition-transform duration-300 ease-out lg:static lg:translate-x-0 lg:transition-none">
                 <div class="h-16 shrink-0 px-6 border-b border-zinc-100 flex items-center justify-between">
                     <div class="flex items-center gap-2.5">
-                        <button id="btn-tutup-cart" type="button" title="Tutup keranjang"
-                            class="lg:hidden w-8 h-8 -ml-1.5 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                        <button id="btn-tutup-cart" type="button" title="Tutup keranjang" aria-label="Tutup keranjang"
+                            class="lg:hidden w-8 h-8 -ml-1.5 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                                 <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
@@ -202,10 +206,10 @@
                         <h2 class="font-bold tracking-tight">Pesanan</h2>
                         <span id="badge-cart-count"
                             class="hidden min-w-6 h-6 px-1.5 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center tabular-nums"></span>
-                        <span id="lbl-item-jenis" class="hidden text-xs font-semibold text-zinc-400"></span>
+                        <span id="lbl-item-jenis" class="hidden text-xs font-semibold text-zinc-500"></span>
                     </div>
                     <button id="btn-reset"
-                        class="text-xs font-semibold text-zinc-400 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
+                        class="text-xs font-semibold text-zinc-500 hover:text-red-600 transition-colors cursor-pointer">Kosongkan</button>
                 </div>
 
                 <p id="hint-cart-selected" class="hidden shrink-0 bg-zinc-900 text-white text-[11px] font-semibold px-6 py-2 flex items-center gap-1.5">
@@ -220,13 +224,21 @@
 
                     <div class="space-y-2.5 text-sm">
                         <div class="flex justify-between items-center">
-                            <span class="text-zinc-500">Subtotal</span>
+                            <span class="text-zinc-600">Subtotal</span>
                             <span id="lbl-total" class="font-bold tabular-nums">Rp 0</span>
                         </div>
                         <div class="flex justify-between items-center gap-3">
-                            <span class="text-zinc-500">Diskon (%)</span>
+                            <span class="text-zinc-600">Diskon (%)</span>
                             <input id="input-diskon" type="text" inputmode="numeric" placeholder="0"
                                 class="w-20 text-right text-sm font-semibold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 tabular-nums placeholder:font-normal placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors">
+                        </div>
+                        <div id="row-potongan-barang" class="hidden flex justify-between items-center">
+                            <span class="text-zinc-600">Potongan Barang</span>
+                            <span id="lbl-potongan-barang" class="font-semibold text-red-500 tabular-nums"></span>
+                        </div>
+                        <div id="row-diskon-nota" class="hidden flex justify-between items-center">
+                            <span class="text-zinc-600">Diskon Nota</span>
+                            <span id="lbl-diskon-nota" class="font-semibold text-red-500 tabular-nums"></span>
                         </div>
                         <div class="flex justify-between items-baseline border-t border-zinc-100 pt-3">
                             <span class="font-bold">Total</span>
@@ -236,7 +248,7 @@
                     </div>
 
                     <button id="btn-toggle-payment" type="button"
-                        class="w-full flex items-center justify-between text-[11px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors py-1.5 cursor-pointer select-none border-t border-zinc-100 pt-3.5">
+                        class="w-full flex items-center justify-between text-[11px] font-bold text-zinc-500 hover:text-zinc-600 transition-colors py-1.5 cursor-pointer select-none border-t border-zinc-100 pt-3.5">
                         <span>PILIHAN & RINCIAN PEMBAYARAN</span>
                         <svg id="icon-toggle-payment" class="w-4 h-4 transition-transform duration-200" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M4 6l4 4 4-4"/>
@@ -246,7 +258,7 @@
                     <div id="payment-details-container" class="space-y-4 hidden">
                         <div class="flex gap-1 bg-zinc-200/60 rounded-xl p-1">
                             @foreach (['tunai' => 'Tunai', 'qris' => 'QRIS', 'transfer' => 'Transfer'] as $val => $label)
-                                <label class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold text-zinc-500 rounded-lg py-2 cursor-pointer transition
+                                <label class="flex-1 flex items-center justify-center gap-1.5 text-sm font-semibold text-zinc-600 rounded-lg py-2 cursor-pointer transition
                                               has-checked:bg-white has-checked:text-zinc-900 has-checked:shadow-xs">
                                     <input type="radio" name="jenis_pembayaran" value="{{ $val }}"
                                         class="hidden" {{ $val === 'tunai' ? 'checked' : '' }}>
@@ -270,14 +282,14 @@
 
                         <div id="row-tunai" class="space-y-2.5 text-sm">
                             <div class="flex justify-between items-center">
-                                <span class="text-zinc-500">Uang diterima</span>
+                                <span class="text-zinc-600">Uang diterima</span>
                                 <input id="input-bayar" type="text" inputmode="numeric" placeholder="Rp 0"
                                     class="w-32 text-right text-sm font-semibold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 tabular-nums placeholder:font-normal placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors">
                             </div>
                             <button id="btn-uang-pas" type="button"
                                 class="w-full text-xs font-semibold text-zinc-600 bg-white border border-zinc-200 hover:border-zinc-900 hover:text-zinc-900 rounded-lg py-2 tabular-nums transition-colors cursor-pointer">Uang pas</button>
                             <div class="flex justify-between items-center">
-                                <span class="text-zinc-500">Kembalian</span>
+                                <span class="text-zinc-600">Kembalian</span>
                                 <span id="lbl-kembalian" class="font-bold tabular-nums">Rp 0</span>
                             </div>
                         </div>
@@ -290,7 +302,7 @@
                                 <div class="min-w-0">
                                     <img src="{{ asset('img/pay/qris.svg') }}" alt="QRIS" class="h-5 mb-1.5">
                                     <p class="text-xs font-semibold text-zinc-900">Scan untuk membayar</p>
-                                    <p class="text-xs text-zinc-400 mt-0.5">Kode contoh, bukan pembayaran sungguhan</p>
+                                    <p class="text-xs text-zinc-500 mt-0.5">Kode contoh, bukan pembayaran sungguhan</p>
                                 </div>
                             </div>
                         </div>
@@ -322,7 +334,7 @@
     </div>
 
     {{-- TOMBOL FLOATING KERANJANG (mobile) --}}
-    <button id="btn-buka-cart" type="button" title="Buka keranjang"
+    <button id="btn-buka-cart" type="button" title="Buka keranjang" aria-label="Buka keranjang"
         class="lg:hidden fixed bottom-5 right-5 z-30 w-14 h-14 rounded-2xl bg-zinc-900 text-white shadow-2xl shadow-zinc-900/40 flex items-center justify-center active:scale-95 transition-all cursor-pointer">
         <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 19m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>
@@ -334,7 +346,7 @@
     </button>
 
     {{-- MODAL STRUK --}}
-    <div id="modal-struk" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
+    <div id="modal-struk" role="dialog" aria-modal="true" aria-label="Struk pembelian" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
         <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 max-h-[90dvh] overflow-y-auto shadow-2xl">
             <div id="struk-body"></div>
             <div id="struk-actions" class="flex gap-2.5 mt-7">
@@ -347,7 +359,7 @@
     </div>
 
     {{-- MODAL KONFIRMASI KOSONGKAN --}}
-    <div id="modal-konfirmasi-reset" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
+    <div id="modal-konfirmasi-reset" role="dialog" aria-modal="true" aria-label="Konfirmasi kosongkan keranjang" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-40 p-4">
         <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
             <div class="text-center">
                 <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-zinc-100 flex items-center justify-center">
@@ -356,7 +368,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Kosongkan Pesanan?</h3>
-                <p class="text-sm text-zinc-500 mt-2"><span id="label-reset-count" class="font-bold text-zinc-900"></span> di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
+                <p class="text-sm text-zinc-600 mt-2"><span id="label-reset-count" class="font-bold text-zinc-900"></span> di keranjang akan dihapus. Tindakan ini tidak bisa dibatalkan.</p>
             </div>
             <div class="flex gap-2.5 mt-7">
                 <button id="btn-batal-reset" type="button"
@@ -377,7 +389,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Hapus Item Ini?</h3>
-                <p class="text-sm text-zinc-500 mt-2"><span id="label-hapus-item" class="font-bold text-zinc-900"></span> akan dihapus dari pesanan.</p>
+                <p class="text-sm text-zinc-600 mt-2"><span id="label-hapus-item" class="font-bold text-zinc-900"></span> akan dihapus dari pesanan.</p>
             </div>
             <div class="flex gap-2.5 mt-7">
                 <button id="btn-batal-hapus" type="button"
@@ -398,7 +410,7 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Pindah Gudang Penyimpanan?</h3>
-                <p class="text-sm text-zinc-500 mt-2">
+                <p class="text-sm text-zinc-600 mt-2">
                     Ada item di keranjang belanja. Jika Anda pindah ke <span id="target-nama-gudang" class="font-bold text-zinc-900">gudang ini</span>, pesanan saat ini akan dikosongkan.
                 </p>
             </div>
@@ -417,7 +429,7 @@
             <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <h3 class="text-sm font-bold tracking-tight">Shortcut</h3>
                 <button id="btn-tutup-panduan-shortcut" type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                         <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -512,10 +524,10 @@
             <div class="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div>
                     <h3 class="text-sm font-bold tracking-tight">Riwayat Transaksi</h3>
-                    <p class="text-[11px] text-zinc-400 mt-0.5" id="riwayat-tanggal-label">Transaksi hari ini</p>
+                    <p class="text-[11px] text-zinc-500 mt-0.5" id="riwayat-tanggal-label">Transaksi hari ini</p>
                 </div>
                 <button id="btn-tutup-riwayat" type="button"
-                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
                         <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -529,7 +541,7 @@
             </div>
             <div class="shrink-0 grid grid-cols-3 gap-2 px-6 py-2.5 border-b border-zinc-100">
                 <label class="block min-w-0">
-                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Kasir</span>
+                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide block mb-1">Kasir</span>
                     <div id="filter-riwayat-kasir" class="relative">
                         <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
                             class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
@@ -541,7 +553,7 @@
                     </div>
                 </label>
                 <label class="block min-w-0">
-                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Gudang</span>
+                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide block mb-1">Gudang</span>
                     <div id="filter-riwayat-gudang" class="relative">
                         <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
                             class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
@@ -553,7 +565,7 @@
                     </div>
                 </label>
                 <label class="block min-w-0">
-                    <span class="text-[10px] font-bold text-zinc-400 uppercase tracking-wide block mb-1">Metode</span>
+                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide block mb-1">Metode</span>
                     <div id="filter-riwayat-metode" class="relative">
                         <button type="button" data-dd-btn aria-haspopup="listbox" aria-expanded="false"
                             class="w-full flex items-center justify-between gap-1 border border-zinc-200 rounded-lg bg-white pl-2.5 pr-2 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400 transition-colors cursor-pointer">
@@ -566,17 +578,17 @@
                 </label>
             </div>
             <div id="riwayat-summary" class="hidden shrink-0 flex items-center justify-between px-6 py-2.5 border-b border-zinc-100 text-xs">
-                <span id="riwayat-summary-jumlah" class="font-bold text-zinc-500"></span>
+                <span id="riwayat-summary-jumlah" class="font-bold text-zinc-600"></span>
                 <span id="riwayat-summary-total" class="font-black text-zinc-900 tabular-nums"></span>
             </div>
-            <div id="riwayat-pemuatan" class="px-6 py-12 text-center text-sm font-semibold text-zinc-400">Memuat riwayat…</div>
+            <div id="riwayat-pemuatan" class="px-6 py-12 text-center text-sm font-semibold text-zinc-500">Memuat riwayat…</div>
             <div id="riwayat-list" class="hidden flex-1 overflow-y-auto px-4 py-3 divide-y divide-zinc-100"></div>
             <div id="riwayat-kosong" class="hidden px-6 py-12 text-center">
                 <svg class="w-10 h-10 text-zinc-200 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="4" y="3" width="16" height="18" rx="2"></rect>
                     <path d="M8 8h8M8 12h8M8 16h5"></path>
                 </svg>
-                <p class="text-sm font-bold text-zinc-500">Belum ada transaksi pada tanggal ini</p>
+                <p class="text-sm font-bold text-zinc-600">Belum ada transaksi pada tanggal ini</p>
             </div>
             <div class="px-4 py-3">
                 <button id="btn-riwayat-lebih" type="button"
@@ -600,12 +612,12 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Otorisasi Cetak Ulang</h3>
-                <p class="text-sm text-zinc-500 mt-1">Masukkan password otorisasi untuk mencetak ulang struk nota <span id="label-nota-password" class="font-bold text-zinc-900"></span>.</p>
+                <p class="text-sm text-zinc-600 mt-1">Masukkan password otorisasi untuk mencetak ulang struk nota <span id="label-nota-password" class="font-bold text-zinc-900"></span>.</p>
             </div>
             <form id="form-password-cetak" class="mt-5 space-y-4">
                 <div>
                     <input id="input-password-cetak" type="password" placeholder="Masukkan password" required autocomplete="off"
-                        class="w-full h-11 border border-zinc-200 rounded-xl px-4 text-sm font-medium bg-white placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 transition-colors">
+                        class="w-full h-11 border border-zinc-200 rounded-xl px-4 text-sm font-medium bg-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-900 transition-colors">
                     <p id="error-password-cetak" class="hidden text-xs font-semibold text-red-600 mt-1.5"></p>
                 </div>
                 <div class="flex gap-2.5">
@@ -631,14 +643,36 @@
                     </svg>
                 </div>
                 <h3 class="text-lg font-bold tracking-tight">Konfirmasi Pembayaran</h3>
-                <p class="text-sm text-zinc-500 mt-2">Pembayaran <span id="label-metode-nontunai" class="font-bold text-zinc-900"></span> sebesar <span id="label-nominal-nontunai" class="font-black text-zinc-900 tabular-nums"></span>.</p>
-                <p class="text-xs text-zinc-400 mt-2">Pastikan dana sudah diterima sebelum melanjutkan transaksi.</p>
+                <p class="text-sm text-zinc-600 mt-2">Pembayaran <span id="label-metode-nontunai" class="font-bold text-zinc-900"></span> sebesar <span id="label-nominal-nontunai" class="font-black text-zinc-900 tabular-nums"></span>.</p>
+                <p class="text-xs text-zinc-500 mt-2">Pastikan dana sudah diterima sebelum melanjutkan transaksi.</p>
             </div>
             <div class="flex gap-2.5 mt-7">
                 <button id="btn-batal-nontunai" type="button"
                     class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
                 <button id="btn-konfirmasi-nontunai" type="button"
                     class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Terima Pembayaran</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL KONFIRMASI DISKON NOTA BESAR --}}
+    <div id="modal-konfirmasi-diskon" class="hidden anim-backdrop fixed inset-0 bg-zinc-950/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div class="anim-scale-in bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-zinc-100 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-zinc-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 9v4"/><path d="M12 17h.01"/><path d="M5 19h14a2 2 0 0 0 1.84-2.75L13.74 4.15a2 2 0 0 0-3.48 0L3.16 16.25A2 2 0 0 0 5 19z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold tracking-tight">Diskon Nota Besar</h3>
+                <p class="text-sm text-zinc-600 mt-2">Diskon nota <span id="label-diskon-persen" class="font-bold text-zinc-900"></span> sebesar <span id="label-diskon-nominal" class="font-black text-zinc-900 tabular-nums"></span>. Lanjutkan transaksi?</p>
+                <p class="text-xs text-zinc-500 mt-2">Pastikan diskon sudah disetujui atasan sebelum melanjutkan.</p>
+            </div>
+            <div class="flex gap-2.5 mt-7">
+                <button id="btn-batal-diskon" type="button"
+                    class="flex-1 border border-zinc-200 hover:border-zinc-900 active:scale-[0.99] text-zinc-700 font-bold rounded-xl py-3 text-sm transition-colors cursor-pointer">Batal</button>
+                <button id="btn-konfirmasi-diskon" type="button"
+                    class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-bold rounded-xl py-3 text-sm transition cursor-pointer">Ya, Lanjutkan</button>
             </div>
         </div>
     </div>

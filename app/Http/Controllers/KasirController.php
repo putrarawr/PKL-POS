@@ -13,6 +13,7 @@ use App\Services\StokService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class KasirController extends Controller
 {
@@ -104,6 +105,8 @@ class KasirController extends Controller
                     'id' => $b->id,
                     'jenis_barang_id' => $b->jenis_barang_id,
                     'nama_barang' => $b->nama_barang,
+                    'nomer_seri' => $b->nomer_seri,
+                    'barcode' => $b->barcode,
                     'harga_jual' => (int) $b->harga_jual,
                     'harga_beli' => (int) $b->harga_beli,
                     'tipe_harga_bertingkat' => $b->tipe_harga_bertingkat ?? 'persen',
@@ -150,6 +153,8 @@ class KasirController extends Controller
                 'id' => $b->id,
                 'jenis_barang_id' => $b->jenis_barang_id,
                 'nama_barang' => $b->nama_barang,
+                'nomer_seri' => $b->nomer_seri,
+                'barcode' => $b->barcode,
                 'harga_jual' => (int) $b->harga_jual,
                 'harga_beli' => (int) $b->harga_beli,
                 'tipe_harga_bertingkat' => $b->tipe_harga_bertingkat ?? 'persen',
@@ -232,7 +237,46 @@ class KasirController extends Controller
             ->selectRaw('count(*) as jumlah, coalesce(sum(neto), 0) as total_neto')
             ->first();
 
-        $items = $penjualan->map(fn ($p) => [
+        $items = $penjualan->map(fn ($p) => $this->formatRiwayatItem($p));
+
+        return response()->json([
+            'items' => $items,
+            'summary' => [
+                'jumlah' => (int) ($summary->jumlah ?? 0),
+                'total_neto' => (int) ($summary->total_neto ?? 0),
+            ],
+        ]);
+    }
+
+    /**
+     * Otorisasi cetak ulang struk lewat password user yang sedang login.
+     * Dipanggil saat kasir menekan tombol "Cetak" di riwayat transaksi.
+     */
+    public function verifikasiCetak(Request $request, int $id)
+    {
+        $password = trim((string) $request->input('password', ''));
+        $authUser = Auth::guard('karyawan')->user() ?? Auth::guard('web')->user();
+
+        if (!$authUser || $password === '' || !Hash::check($password, $authUser->password)) {
+            return response()->json(['message' => 'Password salah! Silakan coba lagi.'], 422);
+        }
+
+        $penjualan = Penjualan::with(['details.barang', 'gudang', 'karyawan', 'user'])
+            ->find($id);
+
+        if (!$penjualan) {
+            return response()->json(['message' => 'Nota tidak ditemukan'], 404);
+        }
+
+        return response()->json($this->formatRiwayatItem($penjualan));
+    }
+
+    /**
+     * Bentuk standar satu item riwayat transaksi (dipakai list & cetak ulang).
+     */
+    private function formatRiwayatItem(Penjualan $p): array
+    {
+        return [
             'id' => $p->id,
             'nomer_nota' => $p->nomer_nota,
             'tanggal' => (string) $p->tanggal,
@@ -241,15 +285,16 @@ class KasirController extends Controller
                 : '-',
             'total' => (int) $p->total,
             'diskon' => (int) $p->diskon,
+            'diskon_persen' => (int) $p->diskon > 0 && (int) $p->diskon + (int) $p->neto > 0
+                ? (int) round(($p->diskon / ((int) $p->diskon + (int) $p->neto)) * 100)
+                : 0,
             'neto' => (int) $p->neto,
             'jenis_pembayaran' => $p->jenis_pembayaran,
             'bayar' => (int) $p->bayar,
             'kembalian' => (int) $p->kembalian,
             'nama_kasir' => $p->getNamaKasirAttribute(),
             'gudang' => $p->gudang?->nama_gudang ?? '-',
-            'jumlah_item' => $p->details->sum(
-                fn ($d) => (int) $d->jumlah * (int) ($d->barang?->getFaktorKonversi($d->satuan) ?? 1)
-            ),
+            'jumlah_item' => $p->details->sum(fn ($d) => (int) $d->jumlah),
             'details' => $p->details->map(fn ($d) => [
                 'nama_barang' => $d->barang?->nama_barang ?? '-',
                 'jumlah' => (int) $d->jumlah,
@@ -259,15 +304,7 @@ class KasirController extends Controller
                 'subtotal' => (int) $d->subtotal,
                 'is_bonus' => (bool) $d->is_bonus,
             ]),
-        ]);
-
-        return response()->json([
-            'items' => $items,
-            'summary' => [
-                'jumlah' => (int) ($summary->jumlah ?? 0),
-                'total_neto' => (int) ($summary->total_neto ?? 0),
-            ],
-        ]);
+        ];
     }
 
     /**
@@ -291,6 +328,50 @@ class KasirController extends Controller
             'details.*.satuan' => ['nullable', 'string'],
             'details.*.is_bonus' => ['nullable', 'boolean'],
         ]);
+
+        // ===== Verifikasi bonus BELANJA dari aturan PromoBonus (jangan percaya browser) =====
+        // Bonus dihitung ulang server: jumlah barang utama (non-bonus) dalam satuan dasar,
+        // dibandingkan dengan min_qty_utama (dikonversi ke satuan dasar) per promo aktif.
+        // Hasilnya jadi "kumpulan" bonus yang berhak, lalu setiap detail is_bonus dicek
+        // terhadap kumpulan ini. Bonus palsu = ditolak.
+        $bonusPool = []; // [barang_bonus_id => ['base' => jumlah dalam satuan dasar]]
+        $promos = \App\Models\PromoBonus::active()->get();
+        if ($promos->isNotEmpty()) {
+            $mainQtyBase = [];
+            foreach ($data['details'] as $d) {
+                if (!empty($d['is_bonus'])) {
+                    continue;
+                }
+                $mainBarang = Barang::find($d['barang_id']);
+                if (!$mainBarang) {
+                    continue;
+                }
+                $faktor = $mainBarang->getFaktorKonversi($d['satuan'] ?? $mainBarang->satuan);
+                $mainQtyBase[$d['barang_id']] = ($mainQtyBase[$d['barang_id']] ?? 0) + ((int) $d['jumlah'] * $faktor);
+            }
+
+            foreach ($promos as $promo) {
+                $mainBarang = Barang::find($promo->barang_utama_id);
+                $bonusBarang = Barang::find($promo->barang_bonus_id);
+                if (!$mainBarang || !$bonusBarang) {
+                    continue;
+                }
+                $faktorUtama = $mainBarang->getFaktorKonversi($promo->satuan_utama);
+                $minBase = (int) $promo->min_qty_utama * $faktorUtama;
+                $totalMain = $mainQtyBase[$promo->barang_utama_id] ?? 0;
+                if ($totalMain < $minBase) {
+                    continue;
+                }
+                $multiplier = $promo->is_kelipatan ? (int) floor($totalMain / $minBase) : 1;
+                $bonusQty = (int) $promo->qty_bonus * max(1, $multiplier);
+                if ($bonusQty < 1) {
+                    continue;
+                }
+                $faktorBonus = $bonusBarang->getFaktorKonversi($promo->satuan_bonus);
+                $key = (int) $promo->barang_bonus_id;
+                $bonusPool[$key]['base'] = ($bonusPool[$key]['base'] ?? 0) + ($bonusQty * $faktorBonus);
+            }
+        }
 
         $penjualan = DB::transaction(function () use ($data) {
             $gudangId = $data['gudang_id'];
@@ -318,15 +399,29 @@ class KasirController extends Controller
                 }
 
                 if ($isBonus) {
+                    // Bonus hanya sah kalau tercatat dalam "kumpulan bonus" yang dihitung dari
+                    // aturan promo + jumlah barang utama. Sisa kuota bonus dikurangi, sisanya
+                    // dipakai untuk cek item bonus berikutnya yang sama barangnya.
+                    $poolKey = (int) $d['barang_id'];
+                    $sisaBonus = $bonusPool[$poolKey]['base'] ?? 0;
+                    if ($sisaBonus < $jumlahDasar) {
+                        abort(422, "Item bonus {$barang->nama_barang} tidak sesuai aturan promo");
+                    }
+                    $bonusPool[$poolKey]['base'] = $sisaBonus - $jumlahDasar;
+
                     $hargaSatuan = 0;
                     $diskonItem = 0;
                     $subtotal = 0;
                     $hargaEfektif = 0;
                 } else {
-                    $hargaNormal = (int) round($barang->harga_jual * $faktor);
+                    // Harga per unit SESUAI satuan yang dipilih (pakai harga khusus/grosir bila ada),
+                    // bukan asal dikali faktor dari harga level 1.
+                    $hargaNormal = $barang->getHargaJualForSatuan($satuan);
                     $hargaTier = $barang->getHargaTierForQty((int) $d['jumlah'], $satuan);
                     $potonganTier = max(0, ($hargaNormal - $hargaTier) * (int) $d['jumlah']);
-                    $diskonItem = max((int) $d['diskon'], $potonganTier);
+                    // Potongan item SELALU dihitung ulang dari harga bertingkat di server.
+                    // Nilai `diskon` yang dikirim browser diabaikan agar tidak bisa dimanipulasi.
+                    $diskonItem = $potonganTier;
                     $hargaSatuan = $hargaNormal;
                     $hargaEfektif = $hargaTier;
                     $subtotal = ($hargaNormal * (int) $d['jumlah']) - $diskonItem;
@@ -346,6 +441,12 @@ class KasirController extends Controller
                     'satuan' => $satuan,
                     'is_bonus' => $isBonus,
                 ];
+            }
+
+            // Jangan lanjut kalau tidak ada item yang benar-benar dijual
+            // (misal semua detail ternyata item bonus yang stoknya habis / tak valid).
+            if (count($details) === 0) {
+                abort(422, 'Tidak ada item yang bisa dijual');
             }
 
             // diskon transaksi dihitung ulang dari persen agar tidak bisa dimanipulasi
@@ -412,6 +513,6 @@ class KasirController extends Controller
             return $penjualan;
         });
 
-        return response()->json($penjualan->load('details'));
+        return response()->json($penjualan->load('details.barang'));
     }
 }

@@ -17,6 +17,7 @@ Route::middleware('auth:karyawan,web')->group(function () {
     Route::get('/kasir', [KasirController::class, 'index'])->name('kasir');
     Route::get('/kasir/data', [KasirController::class, 'data'])->name('kasir.data');
     Route::get('/kasir/riwayat', [KasirController::class, 'riwayat'])->name('kasir.riwayat');
+    Route::post('/kasir/riwayat/{id}/cetak', [KasirController::class, 'verifikasiCetak'])->name('kasir.riwayat.cetak');
     Route::post('/kasir/simpan', [KasirController::class, 'simpan'])->name('kasir.simpan');
 });
 
