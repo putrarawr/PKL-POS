@@ -470,6 +470,7 @@ async function simpanTransaksi(payload) {
             if (b && b.stok[d.gudang_id] != null) b.stok[d.gudang_id] -= (d.jumlah * faktor);
         }
         resetTransaksi();
+        muatRingkasanHari();
     } catch (e) {
         toast(e.message ?? 'Gagal menyimpan transaksi', true);
         renderCart();
@@ -688,6 +689,21 @@ function updateJamHeader() {
     }).format(now);
     if (elWaktu) elWaktu.textContent = waktu;
     if (elTanggal) elTanggal.textContent = tanggal;
+}
+
+async function muatRingkasanHari() {
+    const elTotal = document.getElementById('omzet-hari-ini-total');
+    const elLabel = document.getElementById('omzet-hari-ini-label');
+    if (!elTotal && !elLabel) return;
+    try {
+        const kasirLogin = window.KASIR_DATA?.karyawan?.nama;
+        const res = await getRiwayat(tanggalHariIni(), { limit: 1, kasir: kasirLogin || undefined });
+        const s = res?.summary ?? { jumlah: 0, total_neto: 0 };
+        if (elTotal) elTotal.textContent = rupiah(s.total_neto ?? 0);
+        if (elLabel) elLabel.textContent = `${s.jumlah ?? 0} transaksi hari ini`;
+    } catch (_) {
+        // abaikan, biarkan tampilan default
+    }
 }
 
 let riwayatTanggalAktif = null;
@@ -2717,6 +2733,7 @@ async function init() {
     // jam & tanggal berjalan di header
     updateJamHeader();
     setInterval(updateJamHeader, 1000);
+    muatRingkasanHari();
 
     // drawer keranjang (mobile)
     document.getElementById('btn-buka-cart')?.addEventListener('click', bukaCart);
@@ -2740,6 +2757,7 @@ async function init() {
     }
 
     setInterval(refreshStokSilent, AUTO_REFRESH_MS);
+    setInterval(muatRingkasanHari, AUTO_REFRESH_MS);
 }
 
 init().catch((e) => {
